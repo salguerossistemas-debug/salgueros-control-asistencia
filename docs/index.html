@@ -618,6 +618,12 @@
             </button>
           </div>
 
+          <!-- Botón de Contingencia Exclusivo -->
+          <button type="button" @click="mostrarModalContingencia = true"
+                  class="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-black shadow flex items-center gap-1.5 transition">
+            <span>⚡ Contingencia: Corte de Luz / Internet</span>
+          </button>
+
           <button @click="bloquearAdmin" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 rounded-lg transition flex items-center gap-1">
             <span>Bloquear Panel 🔒</span>
           </button>
@@ -1514,6 +1520,69 @@
     </div>
 
   
+    <!-- MODAL CONTINGENCIA CORTE DE LUZ / INTERNET -->
+    <div v-if="mostrarModalContingencia" class="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4">
+      <div class="bg-slate-900 border-2 border-amber-500 rounded-2xl max-w-md w-full p-6 text-white space-y-4 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <h3 class="text-base font-black text-amber-400 flex items-center gap-2">
+            <span>⚡ Ajuste por Corte de Luz / Internet</span>
+          </h3>
+          <button @click="mostrarModalContingencia = false" class="text-slate-400 hover:text-white font-bold text-lg">✕</button>
+        </div>
+
+        <p class="text-xs text-slate-300">
+          Usa este formulario si recibiste un reporte por correo de corte de energía o internet en el punto. 
+          El sistema asigna la fecha de <strong>hoy automáticamente</strong> sin retardos.
+        </p>
+
+        <!-- PIN MAESTRO 2586 -->
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">PIN Exclusivo de Contingencia:</label>
+          <input v-model="formContingencia.pin" type="password" placeholder="Ingresa tu clave maestra (2586)"
+                 class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-center tracking-widest text-lg font-mono focus:border-amber-400 focus:outline-none">
+        </div>
+
+        <!-- SELECCIONAR EMPLEADO -->
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Empleado a Justificar (del correo):</label>
+          <select v-model="formContingencia.idEmpleado" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none">
+            <option value="" disabled>Selecciona un empleado...</option>
+            <option v-for="emp in listaEmpleados" :key="emp.idEmpleado" :value="emp.idEmpleado">
+              {{ emp.cedula }} — {{ emp.nombreApellido }} ({{ emp.area || 'PLANTA' }})
+            </option>
+          </select>
+        </div>
+
+        <!-- QUÉ SE VA A JUSTIFICAR -->
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Qué deseas justificar:</label>
+          <select v-model="formContingencia.tipoAccion" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none">
+            <option value="JORNADA_COMPLETA">Jornada Completa a Tiempo (Entrada y Salida Programadas)</option>
+            <option value="ENTRADA">Solo Registro de Entrada a Tiempo</option>
+            <option value="SALIDA">Solo Registro de Salida</option>
+          </select>
+        </div>
+
+        <!-- HORA MANUAL OPCIONAL -->
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Hora Manual (Opcional):</label>
+          <input v-model="formContingencia.horaManual" type="time"
+                 class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-white">
+          <span class="text-[10px] text-slate-400">Si lo dejas vacío, el sistema usa la hora oficial de su turno programado.</span>
+        </div>
+
+        <button @click="enviarContingencia" :disabled="procesandoContingencia"
+                class="w-full py-3 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white font-black rounded-xl text-xs transition shadow-lg">
+          {{ procesandoContingencia ? 'Guardando en Base de Datos...' : '✅ Aplicar Asistencia de Contingencia' }}
+        </button>
+
+        <div v-if="mensajeContingencia" class="p-3 rounded-xl text-xs font-bold text-center"
+             :class="mensajeContingencia.exito ? 'bg-emerald-950 text-emerald-300 border border-emerald-700' : 'bg-rose-950 text-rose-300 border border-rose-700'">
+          {{ mensajeContingencia.texto }}
+        </div>
+      </div>
+    </div>
+
     <!-- Footer Salgueros dentro de Vue App para reactividad total -->
     <footer class="mt-16 pt-8 pb-6 flex flex-col items-center justify-center border-t border-slate-800/60">
       <!-- Contenedor del Logo con Clic para ir a Marcación POS (Minimalista sin cuadro negro) -->
@@ -1615,6 +1684,18 @@
         const cedulaEnrolar = ref('');
         const procesandoEnrolamiento = ref(false);
         const resultadoEnrolar = ref(null);
+
+        // Contingencia Corte de Luz / Internet (PIN 2586)
+        const mostrarModalContingencia = ref(false);
+        const formContingencia = reactive({
+          pin: '',
+          idEmpleado: '',
+          tipoAccion: 'JORNADA_COMPLETA',
+          horaManual: '',
+          observacion: 'Corte de luz / internet reportado por correo'
+        });
+        const procesandoContingencia = ref(false);
+        const mensajeContingencia = ref(null);
 
         // Helper de Fechas Locales
         const padZero = (n) => String(n).padStart(2, '0');
@@ -4821,6 +4902,56 @@
           }
         };
 
+        const enviarContingencia = async () => {
+          if (formContingencia.pin !== '2586') {
+            mensajeContingencia.value = { exito: false, texto: '⛔ PIN de contingencia inválido.' };
+            reproducirSonido('error');
+            return;
+          }
+          if (!formContingencia.idEmpleado) {
+            mensajeContingencia.value = { exito: false, texto: '⚠️ Selecciona el empleado a justificar.' };
+            reproducirSonido('alerta');
+            return;
+          }
+
+          procesandoContingencia.value = true;
+          mensajeContingencia.value = null;
+
+          try {
+            const resp = await fetch(`${apiBaseUrl}/api/asistencia/contingencia/aplicar`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                pinContingencia: formContingencia.pin,
+                idEmpleado: Number(formContingencia.idEmpleado),
+                tipoAccion: formContingencia.tipoAccion,
+                horaManual: formContingencia.horaManual ? (formContingencia.horaManual.length === 5 ? formContingencia.horaManual + ':00' : formContingencia.horaManual) : null,
+                observacion: formContingencia.observacion
+              })
+            });
+
+            const data = await resp.json();
+            if (resp.ok && data.exito) {
+              mensajeContingencia.value = { exito: true, texto: data.mensaje };
+              reproducirSonido('exito');
+              formContingencia.pin = '';
+              await consultarAsistencias();
+              setTimeout(() => {
+                mostrarModalContingencia.value = false;
+                mensajeContingencia.value = null;
+              }, 2000);
+            } else {
+              mensajeContingencia.value = { exito: false, texto: data.mensaje || 'Error al aplicar contingencia' };
+              reproducirSonido('error');
+            }
+          } catch (err) {
+            mensajeContingencia.value = { exito: false, texto: 'Error de red: ' + err.message };
+            reproducirSonido('error');
+          } finally {
+            procesandoContingencia.value = false;
+          }
+        };
+
         // Redirección directa a Marcación POS al hacer clic en el Logo (Header y Footer)
         const irAMarcacionPOS = () => {
           cambiarPestaña('marcar');
@@ -4998,10 +5129,16 @@
           infoCicloActual,
           procesandoInventarioCiclo,
           mensajeCierreCiclo,
-          ejecutarInventarioYReinicioCiclo
+          ejecutarInventarioYReinicioCiclo,
+          mostrarModalContingencia,
+          formContingencia,
+          procesandoContingencia,
+          mensajeContingencia,
+          enviarContingencia
         };
       }
     }).mount('#app');
+    
   </script>
 </body>
 </html>

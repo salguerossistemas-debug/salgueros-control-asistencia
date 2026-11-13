@@ -2,6 +2,7 @@ package com.salgueros.asistencia.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.salgueros.asistencia.dto.ContingenciaRequestDTO;
 import com.salgueros.asistencia.dto.CrearEmpleadoRequestDTO;
 import com.salgueros.asistencia.dto.EnrolamientoRequestDTO;
 import com.salgueros.asistencia.dto.MarcacionRequestDTO;
@@ -37,6 +38,9 @@ public class AsistenciaService {
     private final ProgramacionSemanalRepository programacionRepository;
     private final RegistroAsistenciaRepository registroRepository;
     private final ObjectMapper objectMapper;
+
+    @Value("${salgueros.pin.contingencia:2586}")
+    private  String pinContingenciaMaestro;
 
     @Value("${salgueros.asistencia.tolerancia-minutos:5}")
     private int toleranciaMinutos;
@@ -883,4 +887,80 @@ public class AsistenciaService {
         double distancia;
         MatchBiometrico(Empleado e, double d) { this.empleado = e; this.distancia = d; }
     }
+
+    @Transactional
+    public Map<String, Object> aplicarContingencia(ContingenciaRequestDTO req) {
+        // 1. Verificación del PIN secreto (debe ser exactamente 2586)
+        if (req.getPinContingencia() == null || !req.getPinContingencia().trim().equals(pinContingenciaMaestro)) {
+            throw new SecurityException("⛔ PIN de contingencia inválido o no autorizado.");
+        }
+
+        // 2. Fecha automática: siempre toma el día de HOY sin pedir fecha
+        LocalDate fechaHoy = LocalDate.now();
+
+        // 3. Buscar el empleado
+        Empleado emp = empleadoRepository.findById(req.getIdEmpleado().intValue())
+                .orElseThrow(() -> new IllegalArgumentException("Empleado no encontrado con ID: " + req.getIdEmpleado()));
+
+        // 4. Buscar su programación de hoy o crearla si no existía
+        ProgramacionSemanal prog = programacionRepository.findByEmpleadoAndFecha(emp, fechaHoy)
+                .orElseGet(() -> {
+                    ProgramacionSemanal p = ProgramacionSemanal.builder()
+                            .empleado(emp)
+                            .fecha(fechaHoy)
+                            .horaEntradaProgramada(LocalTime.of(6, 0))
+                            .horaSalidaProgramada(LocalTime.of(14, 30))
+                            .minutosAlmuerzoProgramados(30)
+                            .horasExtrasAutorizadas(false)
+                            .tipoNovedadPrecargada(TipoNovedad.NINGUNA)
+                            .bloqueado(false)
+                            .fechaModificacion(LocalDateTime.now())
+                            .build();
+                    return programacionRepository.save(p);
+                });
+
+        // 5. Buscar o crear el registro de asistencia
+        RegistroAsistencia reg = registroRepository.findByProgramacion(prog)
+                .orElseGet(() -> {
+                    RegistroAsistencia r = RegistroAsistencia.builder()
+                            .programacion(prog)
+                            .estadoDia(EstadoDia.EN_CURSO)
+                            .estadoLlegada(EstadoLlegada.A_TIEMPO)
+                            .minutosRetardo(0)
+                            .build();
+                    return r;
+                });
+
+        LocalTime horaEntradaProg = prog.getHoraEntradaProgramada();
+        LocalTime horaSalidaProg = prog.getHoraSalidaProgramada() != null 
+                ? prog.getHoraSalidaProgramada() 
+                : horaEntradaProg.plusHours(8);
+
+        // 6. Aplicar ENTRADA a tiempo (sin retardo)
+        if ("ENTRADA".equalsIgnoreCase(req.getTipoAccion()) || "JORNADA_COMPLETA".equalsIgnoreCase(req.getTipoAccion())) {
+            LocalTime horaEntradaFinal = req.getHoraManual() != null && !req.getHoraManual().isBlank()
+                    ? LocalTime.parse(req.getHoraManual()) : horaEntradaProg;
+            reg.setHoraEntradaReal(LocalDateTime.of(fechaHoy, horaEntradaFinal));
+            reg.setEstadoLlegada(EstadoLlegada.A_TIEMPO);
+            reg.setMinutosRetardo(0);
+        }
+
+        // 7. Aplicar SALIDA completada
+        if ("SALIDA".equalsIgnoreCase(req.getTipoAccion()) || "JORNADA_COMPLETA".equalsIgnoreCase(req.getTipoAccion())) {
+            LocalTime horaSalidaFinal = req.getHoraManual() != null && !req.getHoraManual().isBlank()
+                    ? LocalTime.parse(req.getHoraManual()) : horaSalidaProg;
+            reg.setHoraSalidaReal(LocalDateTime.of(fechaHoy, horaSalidaFinal));
+            reg.setEstadoDia(EstadoDia.COMPLETADO);
+        }
+
+        registroRepository.save(reg);
+
+        return Map.of(
+            "exito", true,
+            "mensaje", "✅ Contingencia aplicada con éxito para " + emp.getNombreApellido() + " (Fecha: " + fechaHoy + ")"
+        );
+    }
+
+
+
 }

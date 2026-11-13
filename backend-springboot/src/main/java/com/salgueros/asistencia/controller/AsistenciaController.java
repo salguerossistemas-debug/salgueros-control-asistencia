@@ -193,4 +193,16 @@ public class AsistenciaController {
         }
         return ip;
     }
+
+        @PostMapping("/contingencia/aplicar")
+    public ResponseEntity<?> aplicarContingencia(@RequestBody com.salgueros.asistencia.dto.ContingenciaRequestDTO request) {
+        try {
+            Map<String, Object> resp = asistenciaService.aplicarContingencia(request);
+            return ResponseEntity.ok(resp);
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("exito", false, "mensaje", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("exito", false, "mensaje", e.getMessage()));
+        }
+    }
 }
