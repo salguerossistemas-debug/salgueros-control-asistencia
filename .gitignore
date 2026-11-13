@@ -1,0 +1,36 @@
+# Build artifacts
+target/
+**/target/
+*.class
+*.jar
+*.war
+
+# Node dependencies
+node_modules/
+**/node_modules/
+
+# Environment files & secrets
+.env
+.env.*
+*.local
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# IDE & Editor files
+.idea/
+*.iml
+.vscode/
+*.swp
+*~
+
+# Operating System files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Logs
+*.log
+logs/
