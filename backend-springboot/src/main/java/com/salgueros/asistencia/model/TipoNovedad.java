@@ -6,5 +6,6 @@ public enum TipoNovedad {
     INCAPACIDAD,
     PERMISO,
     VACACIONES,
-    RETIRO
+    RETIRO,
+    AUSENCIA
 }

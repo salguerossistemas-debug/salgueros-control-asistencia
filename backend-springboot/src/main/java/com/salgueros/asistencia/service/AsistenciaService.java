@@ -896,30 +896,55 @@ public class AsistenciaService {
         MatchBiometrico(Empleado e, double d) { this.empleado = e; this.distancia = d; }
     }
 
+    private LocalTime parseHoraSegura(String h, LocalTime fallback) {
+        if (h == null || h.isBlank()) return fallback;
+        try {
+            String clean = h.trim();
+            if (clean.length() == 4 && clean.indexOf(':') == 1) clean = "0" + clean;
+            if (clean.length() == 5) clean = clean + ":00";
+            return LocalTime.parse(clean);
+        } catch (Exception e) {
+            return fallback;
+        }
+    }
+
     @Transactional
     public Map<String, Object> aplicarContingencia(ContingenciaRequestDTO req) {
-        // 1. Verificación del PIN exclusivo de contingencia (debe ser exactamente 2586)
+        // 1. Verificación del PIN exclusivo de contingencia o admin (2586 o salgueros2026)
         if (req.getPinContingencia() == null || 
-            (!req.getPinContingencia().trim().equals(pinContingenciaMaestro) && !"2586".equals(req.getPinContingencia().trim()))) {
+            (!req.getPinContingencia().trim().equals(pinContingenciaMaestro) 
+             && !"2586".equals(req.getPinContingencia().trim())
+             && !"salgueros2026".equals(req.getPinContingencia().trim())
+             && !"salgueros2026.".equals(req.getPinContingencia().trim()))) {
             throw new SecurityException("⛔ PIN de contingencia inválido o no autorizado.");
         }
 
-        // 2. Fecha automática: siempre toma el día de HOY sin pedir fecha
-        LocalDate fechaHoy = LocalDate.now();
+        // 2. Fecha: si el usuario seleccionó una fecha específica la usa; si no, toma hoy
+        LocalDate fechaAsistencia;
+        if (req.getFecha() != null && !req.getFecha().isBlank()) {
+            try {
+                fechaAsistencia = LocalDate.parse(req.getFecha().trim());
+            } catch (Exception e) {
+                fechaAsistencia = LocalDate.now();
+            }
+        } else {
+            fechaAsistencia = LocalDate.now();
+        }
 
         // 3. Buscar el empleado
         Empleado emp = empleadoRepository.findById(req.getIdEmpleado().intValue())
                 .orElseThrow(() -> new IllegalArgumentException("Empleado no encontrado con ID: " + req.getIdEmpleado()));
 
-        // 4. Buscar su programación de hoy o crearla si no existía
-        ProgramacionSemanal prog = programacionRepository.findByEmpleadoAndFecha(emp, fechaHoy)
+        // 4. Buscar su programación de esa fecha o crearla si no existía
+        final LocalDate fechaFinal = fechaAsistencia;
+        ProgramacionSemanal prog = programacionRepository.findByEmpleadoAndFecha(emp, fechaFinal)
                 .orElseGet(() -> {
                     ProgramacionSemanal p = ProgramacionSemanal.builder()
                             .empleado(emp)
-                            .fecha(fechaHoy)
-                            .horaEntradaProgramada(LocalTime.of(6, 0))
-                            .horaSalidaProgramada(LocalTime.of(14, 30))
-                            .minutosAlmuerzoProgramados(30)
+                            .fecha(fechaFinal)
+                            .horaEntradaProgramada(LocalTime.of(8, 0))
+                            .horaSalidaProgramada(LocalTime.of(17, 0))
+                            .minutosAlmuerzoProgramados(req.getMinutosAlmuerzo() != null ? req.getMinutosAlmuerzo() : 60)
                             .horasExtrasAutorizadas(false)
                             .tipoNovedadPrecargada(TipoNovedad.NINGUNA)
                             .bloqueado(false)
@@ -927,6 +952,11 @@ public class AsistenciaService {
                             .build();
                     return programacionRepository.save(p);
                 });
+
+        if (req.getMinutosAlmuerzo() != null) {
+            prog.setMinutosAlmuerzoProgramados(req.getMinutosAlmuerzo());
+            programacionRepository.save(prog);
+        }
 
         // 5. Buscar o crear el registro de asistencia
         RegistroAsistencia reg = registroRepository.findByProgramacion(prog)
@@ -936,8 +966,6 @@ public class AsistenciaService {
                             .estadoDia(EstadoDia.EN_CURSO)
                             .estadoLlegada(EstadoLlegada.A_TIEMPO)
                             .minutosRetardo(0)
-                            
-                            
                             .build();
                     return r;
                 });
@@ -947,28 +975,54 @@ public class AsistenciaService {
                 ? prog.getHoraSalidaProgramada() 
                 : horaEntradaProg.plusHours(8);
 
-        // 6. Aplicar ENTRADA a tiempo (sin retardo)
-        if ("ENTRADA".equalsIgnoreCase(req.getTipoAccion()) || "JORNADA_COMPLETA".equalsIgnoreCase(req.getTipoAccion())) {
-            LocalTime horaEntradaFinal = req.getHoraManual() != null && !req.getHoraManual().isBlank()
-                    ? LocalTime.parse(req.getHoraManual()) : horaEntradaProg;
-            reg.setHoraEntradaReal(LocalDateTime.of(fechaHoy, horaEntradaFinal));
-            reg.setEstadoLlegada(EstadoLlegada.A_TIEMPO);
-            reg.setMinutosRetardo(0);
+        // Resolver horas reales manuales
+        LocalTime horaEntradaFinal = horaEntradaProg;
+        if (req.getHoraEntradaManual() != null && !req.getHoraEntradaManual().isBlank()) {
+            horaEntradaFinal = parseHoraSegura(req.getHoraEntradaManual(), horaEntradaProg);
+        } else if (req.getHoraManual() != null && !req.getHoraManual().isBlank() && !"SALIDA".equalsIgnoreCase(req.getTipoAccion())) {
+            horaEntradaFinal = parseHoraSegura(req.getHoraManual(), horaEntradaProg);
         }
 
-        // 7. Aplicar SALIDA completada
-        if ("SALIDA".equalsIgnoreCase(req.getTipoAccion()) || "JORNADA_COMPLETA".equalsIgnoreCase(req.getTipoAccion())) {
-            LocalTime horaSalidaFinal = req.getHoraManual() != null && !req.getHoraManual().isBlank()
-                    ? LocalTime.parse(req.getHoraManual()) : horaSalidaProg;
-            reg.setHoraSalidaReal(LocalDateTime.of(fechaHoy, horaSalidaFinal));
+        LocalTime horaSalidaFinal = horaSalidaProg;
+        if (req.getHoraSalidaManual() != null && !req.getHoraSalidaManual().isBlank()) {
+            horaSalidaFinal = parseHoraSegura(req.getHoraSalidaManual(), horaSalidaProg);
+        } else if (req.getHoraManual() != null && !req.getHoraManual().isBlank() && "SALIDA".equalsIgnoreCase(req.getTipoAccion())) {
+            horaSalidaFinal = parseHoraSegura(req.getHoraManual(), horaSalidaProg);
+        }
+
+        // 6. Aplicar según acción elegida
+        if ("ENTRADA".equalsIgnoreCase(req.getTipoAccion())) {
+            reg.setHoraEntradaReal(LocalDateTime.of(fechaAsistencia, horaEntradaFinal));
+            reg.setEstadoLlegada(EstadoLlegada.A_TIEMPO);
+            reg.setMinutosRetardo(0);
+        } else if ("SALIDA".equalsIgnoreCase(req.getTipoAccion())) {
+            reg.setHoraSalidaReal(LocalDateTime.of(fechaAsistencia, horaSalidaFinal));
             reg.setEstadoDia(EstadoDia.COMPLETADO);
+        } else {
+            // JORNADA_COMPLETA
+            reg.setHoraEntradaReal(LocalDateTime.of(fechaAsistencia, horaEntradaFinal));
+            reg.setHoraSalidaReal(LocalDateTime.of(fechaAsistencia, horaSalidaFinal));
+            reg.setEstadoLlegada(EstadoLlegada.A_TIEMPO);
+            reg.setMinutosRetardo(0);
+            reg.setEstadoDia(EstadoDia.COMPLETADO);
+        }
+
+        // 7. Simular almuerzo si aplica para nómina
+        int minAlm = prog.getMinutosAlmuerzoProgramados();
+        if (minAlm > 0 && reg.getHoraEntradaReal() != null && reg.getHoraSalidaReal() != null) {
+            long totalMin = Duration.between(reg.getHoraEntradaReal(), reg.getHoraSalidaReal()).toMinutes();
+            if (totalMin > minAlm) {
+                long mitad = (totalMin - minAlm) / 2;
+                reg.setHoraSalidaAlmuerzo(reg.getHoraEntradaReal().plusMinutes(mitad));
+                reg.setHoraRegresoAlmuerzo(reg.getHoraSalidaAlmuerzo().plusMinutes(minAlm));
+            }
         }
 
         registroRepository.save(reg);
 
         return Map.of(
             "exito", true,
-            "mensaje", "✅ Contingencia aplicada con éxito para " + emp.getNombreApellido() + " (Fecha: " + fechaHoy + ")"
+            "mensaje", "✅ Asistencia ajustada con éxito para " + emp.getNombreApellido() + " (Fecha: " + fechaAsistencia + ")"
         );
     }
 

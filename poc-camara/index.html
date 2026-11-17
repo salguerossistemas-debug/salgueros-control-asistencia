@@ -1187,6 +1187,7 @@
                             <option value="VACACIONES">🏖️ VACACIONES</option>
                             <option value="INCAPACIDAD">🏥 INCAPACIDAD</option>
                             <option value="PERMISO">📄 PERMISO</option>
+                            <option value="AUSENCIA">❌ AUSENCIA</option>
                             <option value="CUSTOM">⚙️ Personalizado...</option>
                           </select>
 
@@ -1416,20 +1417,26 @@
         </div>
 
         <p class="text-xs text-slate-300">
-          Usa este formulario si recibiste un reporte por correo de corte de energía o internet en el punto. 
-          El sistema asigna la fecha de <strong>hoy automáticamente</strong> sin retardos.
+          Usa este formulario para registrar o ajustar asistencias cuando no hubo internet o energía, o para modificar horas reales de cualquier fecha pasada.
         </p>
 
-        <!-- PIN MAESTRO 2586 -->
+        <!-- PIN MAESTRO 2586 O ADMIN -->
         <div>
-          <label class="block text-xs font-bold text-slate-300 mb-1">PIN Exclusivo de Contingencia:</label>
-          <input v-model="formContingencia.pin" type="password" placeholder="Ingresa tu pin de contingencia"
+          <label class="block text-xs font-bold text-slate-300 mb-1">PIN de Seguridad (Contingencia o Admin):</label>
+          <input v-model="formContingencia.pin" type="password" placeholder="Ingresa PIN (2586)"
                  class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-center tracking-widest text-lg font-mono focus:border-[#BB2528] focus:outline-none">
+        </div>
+
+        <!-- FECHA DEL EVENTO -->
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">📅 Fecha a Justificar / Modificar:</label>
+          <input v-model="formContingencia.fecha" type="date"
+                 class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-white font-mono focus:border-[#BB2528] focus:outline-none">
         </div>
 
         <!-- SELECCIONAR EMPLEADO -->
         <div>
-          <label class="block text-xs font-bold text-slate-300 mb-1">Empleado a Justificar (del correo):</label>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Empleado a Justificar:</label>
           <select v-model="formContingencia.idEmpleado" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none">
             <option value="" disabled>Selecciona un empleado...</option>
             <option v-for="emp in listaEmpleados" :key="emp.idEmpleado" :value="emp.idEmpleado">
@@ -1442,14 +1449,40 @@
         <div>
           <label class="block text-xs font-bold text-slate-300 mb-1">Qué deseas justificar:</label>
           <select v-model="formContingencia.tipoAccion" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none">
-            <option value="JORNADA_COMPLETA">Jornada Completa a Tiempo (Entrada y Salida Programadas)</option>
+            <option value="JORNADA_COMPLETA">Jornada Completa (Entrada, Salida y Almuerzo)</option>
             <option value="ENTRADA">Solo Registro de Entrada a Tiempo</option>
             <option value="SALIDA">Solo Registro de Salida</option>
           </select>
         </div>
 
-        <!-- HORA MANUAL OPCIONAL -->
-        <div>
+        <!-- HORAS REALES CUANDO ES JORNADA COMPLETA -->
+        <div v-if="formContingencia.tipoAccion === 'JORNADA_COMPLETA'" class="space-y-2">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-bold text-emerald-300 mb-1">Hora Entrada Real:</label>
+              <input v-model="formContingencia.horaEntrada" type="time"
+                     class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-white">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-purple-300 mb-1">Hora Salida Real:</label>
+              <input v-model="formContingencia.horaSalida" type="time"
+                     class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-white">
+            </div>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-amber-300 mb-1">🍽️ Descuento de Almuerzo:</label>
+            <select v-model.number="formContingencia.minutosAlmuerzo" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-white font-semibold">
+              <option :value="0">0 min (Jornada Continua)</option>
+              <option :value="30">30 min</option>
+              <option :value="45">45 min</option>
+              <option :value="60">60 min (1 hora estándar)</option>
+              <option :value="90">90 min</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- HORA MANUAL PARA SOLO ENTRADA O SOLO SALIDA -->
+        <div v-else>
           <label class="block text-xs font-bold text-slate-300 mb-1">Hora Manual (Opcional):</label>
           <input v-model="formContingencia.horaManual" type="time"
                  class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-white">
@@ -1573,18 +1606,6 @@
         const procesandoEnrolamiento = ref(false);
         const resultadoEnrolar = ref(null);
 
-        // Contingencia Corte de Luz / Internet (PIN 2586)
-        const mostrarModalContingencia = ref(false);
-        const formContingencia = reactive({
-          pin: '',
-          idEmpleado: '',
-          tipoAccion: 'JORNADA_COMPLETA',
-          horaManual: '',
-          observacion: 'Corte de luz / internet reportado por correo'
-        });
-        const procesandoContingencia = ref(false);
-        const mensajeContingencia = ref(null);
-
         // Helper de Fechas Locales
         const padZero = (n) => String(n).padStart(2, '0');
         const formatearFechaLocal = (d) => `${d.getFullYear()}-${padZero(d.getMonth() + 1)}-${padZero(d.getDate())}`;
@@ -1598,6 +1619,22 @@
         const hoyStr = formatearFechaLocal(fechaHoyLocal);
         const ayerStr = formatearFechaLocal(fechaAyerLocal);
         const mananaStr = formatearFechaLocal(fechaMananaLocal);
+
+        // Contingencia Corte de Luz / Internet / Ajuste de Horas
+        const mostrarModalContingencia = ref(false);
+        const formContingencia = reactive({
+          pin: '',
+          idEmpleado: '',
+          fecha: hoyStr,
+          tipoAccion: 'JORNADA_COMPLETA',
+          horaManual: '',
+          horaEntrada: '08:00',
+          horaSalida: '17:00',
+          minutosAlmuerzo: 60,
+          observacion: 'Ajuste de asistencia / corte de luz o internet'
+        });
+        const procesandoContingencia = ref(false);
+        const mensajeContingencia = ref(null);
 
         // Creación de Nuevo Empleado (Protegido con PIN + Fecha de inicio laboral)
         const mostrarFormNuevoEmpleado = ref(false);
@@ -2918,7 +2955,7 @@
             celda.tipo = 'DESCANSO';
             celda.tipoNovedad = 'DESCANSO';
             celda.modoPersonalizado = false;
-          } else if (['VACACIONES', 'INCAPACIDAD', 'PERMISO'].includes(nuevoPreset)) {
+          } else if (['VACACIONES', 'INCAPACIDAD', 'PERMISO', 'AUSENCIA'].includes(nuevoPreset)) {
             celda.tipo = 'NOVEDAD';
             celda.tipoNovedad = nuevoPreset;
             celda.modoPersonalizado = false;
@@ -4803,8 +4840,9 @@
         };
 
         const enviarContingencia = async () => {
-          if (formContingencia.pin !== '2586') {
-            mensajeContingencia.value = { exito: false, texto: '⛔ PIN de contingencia inválido.' };
+          const pinIng = (formContingencia.pin || '').trim();
+          if (pinIng !== '2586' && pinIng !== 'salgueros2026' && pinIng !== 'salgueros2026.') {
+            mensajeContingencia.value = { exito: false, texto: '⛔ PIN de seguridad inválido. Usa 2586 o el PIN de Administrador.' };
             reproducirSonido('error');
             return;
           }
@@ -4824,7 +4862,11 @@
               body: JSON.stringify({
                 pinContingencia: formContingencia.pin,
                 idEmpleado: Number(formContingencia.idEmpleado),
+                fecha: formContingencia.fecha || hoyStr,
                 tipoAccion: formContingencia.tipoAccion,
+                horaEntradaManual: formContingencia.horaEntrada,
+                horaSalidaManual: formContingencia.horaSalida,
+                minutosAlmuerzo: formContingencia.minutosAlmuerzo != null ? formContingencia.minutosAlmuerzo : 60,
                 horaManual: formContingencia.horaManual ? (formContingencia.horaManual.length === 5 ? formContingencia.horaManual + ':00' : formContingencia.horaManual) : null,
                 observacion: formContingencia.observacion
               })
@@ -4836,10 +4878,13 @@
               reproducirSonido('exito');
               formContingencia.pin = '';
               await consultarAsistencias();
+              if (typeof cargarProgramacionSemanal === 'function') {
+                await cargarProgramacionSemanal();
+              }
               setTimeout(() => {
                 mostrarModalContingencia.value = false;
                 mensajeContingencia.value = null;
-              }, 2000);
+              }, 2200);
             } else {
               mensajeContingencia.value = { exito: false, texto: data.mensaje || 'Error al aplicar contingencia' };
               reproducirSonido('error');
