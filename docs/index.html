@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Salgueros — Sistema POS de Asistencia Biométrica</title>
+  <title>Salgueros — Sistema POS de Asistencia de Entrada</title>
   <link rel="icon" type="image/x-icon" href="./assets/logo.ico">
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -1187,6 +1187,7 @@
                             <option value="VACACIONES">🏖️ VACACIONES</option>
                             <option value="INCAPACIDAD">🏥 INCAPACIDAD</option>
                             <option value="PERMISO">📄 PERMISO</option>
+                            <option value="AUSENCIA">❌ AUSENCIA</option>
                             <option value="CUSTOM">⚙️ Personalizado...</option>
                           </select>
 
@@ -2918,7 +2919,7 @@
             celda.tipo = 'DESCANSO';
             celda.tipoNovedad = 'DESCANSO';
             celda.modoPersonalizado = false;
-          } else if (['VACACIONES', 'INCAPACIDAD', 'PERMISO'].includes(nuevoPreset)) {
+          } else if (['VACACIONES', 'INCAPACIDAD', 'PERMISO', 'AUSENCIA'].includes(nuevoPreset)) {
             celda.tipo = 'NOVEDAD';
             celda.tipoNovedad = nuevoPreset;
             celda.modoPersonalizado = false;
