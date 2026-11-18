@@ -55,17 +55,18 @@
     <!-- Encabezado POS -->
     <header class="flex flex-col md:flex-row items-start md:items-center justify-between pb-4 border-b border-slate-800 gap-4">
       <div>
-        <div @click="irAMarcacionPOS" class="flex items-center gap-3 cursor-pointer group select-none" title="Ir a Marcación POS">
+        <div  class="flex items-center gap-3 group select-none" >
           <img src="./assets/logo.ico" 
                alt="Logo Salgueros" 
-               class="w-14 h-14 object-contain rounded-full group-hover:scale-105 transition duration-200 drop-shadow-[0_4px_12px_rgba(0,0,0,0.75)]">
+               style="width: 75px; height: 72px;"
+               class="object-contain rounded-full drop-shadow-[0_4px_16px_rgba(0,0,0,0.85)]">
           <div>
-            <h1 class="text-2xl font-black text-slate-100 tracking-tight group-hover:text-emerald-400 transition duration-200">SALGUEROS — CONTROL DE ASISTENCIA</h1>
-            <p class="text-xs text-slate-400 group-hover:text-slate-300">RECONOCIMIENTO FACIAL EN VIVO !!  &bull; <span class="text-emerald-400 font-bold underline">Ir a Marcación</span></p>
+            <h1 style="color: #b50d2f; -webkit-text-stroke: 1px #ffffff; text-shadow: 0 2px 8px rgba(0,0,0,0.9);" class="text-3xl font-black tracking-tight">SALGUEROS — CONTROL DE ASISTENCIA</h1>
+            <p class="text-sm font-medium text-slate-400">RECONOCIMIENTO FACIAL EN VIVO !! </p>
           </div>
         </div>
       </div>
-
+      
       <!-- Estados y Botón Excel -->
       <div class="flex flex-wrap items-center gap-2">
         <span class="px-3 py-1 rounded-full text-xs font-semibold"
@@ -176,7 +177,7 @@
             <button v-if="camaraActiva" @click="detenerCamara" class="px-4 py-2 bg-rose-900/60 hover:bg-rose-800 text-rose-300 rounded-lg font-semibold transition">
               Apagar Cámara
             </button>
-            <span class="text-slate-400">Criterio PoC: Inferencia &le; 1.5s</span>
+            <span class="text-slate-400"> Mira hacia la camara y parpadea 👀</span>
           </div>
           <span class="font-mono text-emerald-400 font-bold" v-if="tiempoInferencia > 0">
             {{ tiempoInferencia <= 1500 ? '✅ Cumple Velocidad PoC' : '⚠️ Supera 1500ms' }}
@@ -1597,15 +1598,11 @@
 
     <!-- Footer Salgueros centrado al 100% del ancho -->
     <footer class="w-full col-span-full mt-16 pt-8 pb-6 flex flex-col items-center justify-center text-center border-t border-slate-800/60">
-      <div @click="irAMarcacionPOS" 
-           class="inline-flex flex-col items-center justify-center gap-2 opacity-90 hover:opacity-100 transition-all duration-300 cursor-pointer group select-none" 
-           title="Ir a Marcación POS">
+      <div    class="inline-flex flex-col items-center justify-center gap-2 opacity-90 hover:opacity-100 transition-all duration-300  group select-none" >
         <img src="./assets/logo-horizontal.png" 
-             alt="Salgueros" 
-             class="h-16 md:h-20 w-auto mx-auto object-contain group-hover:scale-105 transition-transform duration-200 drop-shadow-[0_4px_16px_rgba(0,0,0,0.85)]">
-        <span class="text-[11px] text-slate-300 group-hover:text-emerald-400 font-semibold transition-colors duration-200 flex items-center justify-center gap-1">
-          <span>🎯 Clic para ir a Marcación POS</span>
-        </span>
+              alt="Salgueros" 
+              style="height: 130px;" 
+              class="w-auto mx-auto object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.85)]">
       </div>
       
       <div class="mt-3 text-center w-full"> 
