@@ -45,7 +45,10 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         // 3. Agregar columna 'fecha_modificacion' si no existe
         ejecutarSqlSeguro("ALTER TABLE programacion_semanal ADD COLUMN IF NOT EXISTS fecha_modificacion TIMESTAMP NULL");
 
-        // 4. Normalizar registros existentes con la regla de llegada temprana y alivio de 8 minutos
+        // 4. Agregar columna informativa 'punto_venta' si no existe (solo informativo para malla de ventas)
+        ejecutarSqlSeguro("ALTER TABLE programacion_semanal ADD COLUMN IF NOT EXISTS punto_venta VARCHAR(100) NULL");
+
+        // 5. Normalizar registros existentes con la regla de llegada temprana y alivio de 8 minutos
         normalizarRegistrosAsistenciaConAlivio();
 
         log.info("Sincronización de esquema completada exitosamente.");

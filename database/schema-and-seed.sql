@@ -42,6 +42,7 @@ CREATE TABLE programacion_semanal (
     minutos_almuerzo_programados INT DEFAULT 0,
     horas_extras_autorizadas BOOLEAN DEFAULT FALSE,
     tipo_novedad_precargada ENUM('NINGUNA', 'INCAPACIDAD', 'PERMISO', 'VACACIONES', 'RETIRO', 'DESCANSO') DEFAULT 'NINGUNA',
+    punto_venta VARCHAR(100) NULL,
     bloqueado BOOLEAN DEFAULT FALSE,
     fecha_modificacion DATETIME NULL,
     CONSTRAINT fk_prog_empleado FOREIGN KEY (id_empleado) 

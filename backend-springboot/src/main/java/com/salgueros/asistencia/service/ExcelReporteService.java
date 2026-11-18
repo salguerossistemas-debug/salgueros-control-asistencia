@@ -46,11 +46,31 @@ public class ExcelReporteService {
     private static final DateTimeFormatter SHORT_TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter DATETIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    private static final List<String> PUNTOS_ZONA_SUR_LINEAS = List.of(
+        "1. DRIVER PLAZA: transversal 99 # 70a-89",
+        "2. BAZAAR: CALLE 12B # 71D-61",
+        "3. COLSEGUROS: CARRERA 10 # 17-72",
+        "4. PLAZA 1: carrera 65 n° 11-50 local 211",
+        "5. PLAZA 2: carrera 65 n° 11-50 local 283"
+    );
+
+    private static final List<String> PUNTOS_ZONA_NORTE_LINEAS = List.of(
+        "1. BULEVAR: Carrera 58 # 127-59",
+        "2. PORTAL 80: Carrera 68 No. 90-88",
+        "3. COUNTRY: Calle 134 No. 9-51",
+        "4. CAFAM FLORESTA: Transversal 100a No. 80a-20",
+        "5. MAZUREN: Cra 46 #150-46"
+    );
+
+    public byte[] generarMatrizSemanalExcel(LocalDate fechaInicioSemana) throws IOException {
+        return generarMatrizSemanalExcel(fechaInicioSemana, null);
+    }
+
     /**
      * Endpoint 1: Matriz Cruzada Semanal de Horarios (Lunes a Domingo)
      * Columnas: [Cédula] | [Empleado] | [Cargo] | [Lunes] | [Martes] | [Miércoles] | [Jueves] | [Viernes] | [Sábado] | [Domingo] | [Min. Almuerzo] | [Total Horas Base Semanales]
      */
-    public byte[] generarMatrizSemanalExcel(LocalDate fechaInicioSemana) throws IOException {
+    public byte[] generarMatrizSemanalExcel(LocalDate fechaInicioSemana, String areaFiltro) throws IOException {
         if (fechaInicioSemana == null) {
             fechaInicioSemana = LocalDate.now();
         }
@@ -64,6 +84,14 @@ public class ExcelReporteService {
         }
 
         List<Empleado> empleados = empleadoRepository.findByEstado(EstadoEmpleado.ACTIVO);
+        if (areaFiltro != null && !areaFiltro.isBlank()
+                && !"TODAS".equalsIgnoreCase(areaFiltro.trim())
+                && !"TODOS".equalsIgnoreCase(areaFiltro.trim())) {
+            String areaBuscada = areaFiltro.trim();
+            empleados = empleados.stream()
+                    .filter(e -> areaBuscada.equalsIgnoreCase(e.getArea() != null ? e.getArea() : "PLANTA"))
+                    .collect(Collectors.toList());
+        }
         empleados.sort((e1, e2) -> {
             String a1 = e1.getArea() != null ? e1.getArea() : "PLANTA";
             String a2 = e2.getArea() != null ? e2.getArea() : "PLANTA";
@@ -179,6 +207,7 @@ public class ExcelReporteService {
             normalDayStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             normalDayStyle.setAlignment(HorizontalAlignment.CENTER);
             normalDayStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+            normalDayStyle.setWrapText(true);
             normalDayStyle.setFont(fontDatosBold);
             aplicarBordes(normalDayStyle);
 
@@ -187,6 +216,7 @@ public class ExcelReporteService {
             domingoTurnoStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             domingoTurnoStyle.setAlignment(HorizontalAlignment.CENTER);
             domingoTurnoStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+            domingoTurnoStyle.setWrapText(true);
             domingoTurnoStyle.setFont(fontDatosBold);
             aplicarBordes(domingoTurnoStyle);
 
@@ -292,6 +322,8 @@ public class ExcelReporteService {
 
                 double horasEmp = 0.0;
                 int minAlmuerzoEmpleado = 0;
+                boolean tienePuntoVentaEnFila = false;
+                boolean esVentasEmp = "VENTAS".equalsIgnoreCase(emp.getArea());
                 Map<LocalDate, ProgramacionSemanal> turnosEmp = mapaTurnos.getOrDefault(emp.getIdEmpleado(), Collections.emptyMap());
 
                 for (int d = 0; d < 7; d++) {
@@ -311,7 +343,15 @@ public class ExcelReporteService {
                         LocalTime ent = prog.getHoraEntradaProgramada();
                         LocalTime sal = prog.getHoraSalidaProgramada() != null ? prog.getHoraSalidaProgramada() : ent.plusHours(8);
                         String rango = ent.format(SHORT_TIME_FMT) + " - " + sal.format(SHORT_TIME_FMT);
-                        cellDia.setCellValue(rango);
+                        String pv = (esVentasEmp && prog.getPuntoVenta() != null && !prog.getPuntoVenta().isBlank())
+                                ? prog.getPuntoVenta().trim()
+                                : null;
+                        if (pv != null) {
+                            cellDia.setCellValue(rango + "\n📍 " + pv);
+                            tienePuntoVentaEnFila = true;
+                        } else {
+                            cellDia.setCellValue(rango);
+                        }
                         cellDia.setCellStyle(esDomingo ? domingoTurnoStyle : normalDayStyle);
 
                         Duration dur = Duration.between(ent, sal);
@@ -322,6 +362,9 @@ public class ExcelReporteService {
                         long minNetos = Math.max(0, minBrutos - minAlm);
                         horasEmp += (minNetos / 60.0);
                     }
+                }
+                if (tienePuntoVentaEnFila) {
+                    row.setHeightInPoints(34);
                 }
 
                 // Min. Almuerzo
@@ -359,12 +402,15 @@ public class ExcelReporteService {
                 sheet.setAutoFilter(new CellRangeAddress(3, rowIdx - 1, 0, 11));
             }
 
+            // Sección permanente de direcciones al pie de la hoja (Guía de referencia para Ventas)
+            agregarPieDireccionesPuntosVenta(workbook, sheet, rowIdx + 2, 12, titleStyle);
+
             // Ajustar anchos
             sheet.setColumnWidth(0, 14 * 256); // Cédula
             sheet.setColumnWidth(1, 26 * 256); // Empleado
             sheet.setColumnWidth(2, 18 * 256); // Cargo
             for (int d = 3; d <= 9; d++) {
-                sheet.setColumnWidth(d, 16 * 256); // Lunes a Domingo
+                sheet.setColumnWidth(d, 20 * 256); // Lunes a Domingo
             }
             sheet.setColumnWidth(10, 14 * 256); // Min. Almuerzo
             sheet.setColumnWidth(11, 20 * 256); // Total Horas Base
@@ -382,17 +428,17 @@ public class ExcelReporteService {
                 Cell c0Dia = r0Dia.createCell(0);
                 c0Dia.setCellValue("SALGUEROS — HORARIO DEL DÍA: " + nombresDias[d].toUpperCase() + " " + diaFecha.format(DATE_FMT));
                 c0Dia.setCellStyle(esDom ? headerDomingoStyle : titleStyle);
-                sheetDia.addMergedRegion(new CellRangeAddress(0, 0, 0, 8));
+                sheetDia.addMergedRegion(new CellRangeAddress(0, 0, 0, 9));
 
                 Row r1Dia = sheetDia.createRow(1);
                 r1Dia.setHeightInPoints(18);
                 Cell c1Dia = r1Dia.createCell(0);
                 c1Dia.setCellValue("Programación Individual del Día  |  1 Fila por Empleado  |  Almuerzo Descontado");
                 c1Dia.setCellStyle(subTitleStyle);
-                sheetDia.addMergedRegion(new CellRangeAddress(1, 1, 0, 8));
+                sheetDia.addMergedRegion(new CellRangeAddress(1, 1, 0, 9));
 
                 String[] headersDia = {
-                    "Cédula", "Empleado", "Cargo", "Fecha", "Día",
+                    "Cédula", "Empleado", "Cargo", "Punto de Venta", "Fecha", "Día",
                     "Entrada Prog", "Salida Prog", "Min. Almuerzo", "Horas Netas Día"
                 };
                 Row hRowDia = sheetDia.createRow(3);
@@ -411,6 +457,11 @@ public class ExcelReporteService {
                     rowD.setHeightInPoints(20);
                     Map<LocalDate, ProgramacionSemanal> turnosEmp = mapaTurnos.getOrDefault(emp.getIdEmpleado(), Collections.emptyMap());
                     ProgramacionSemanal prog = turnosEmp.get(diaFecha);
+                    boolean esVentasEmp = "VENTAS".equalsIgnoreCase(emp.getArea());
+                    boolean esTurnoLaboral = prog != null && (prog.getTipoNovedadPrecargada() == null || prog.getTipoNovedadPrecargada() == TipoNovedad.NINGUNA);
+                    String pvDia = (esVentasEmp && esTurnoLaboral && prog.getPuntoVenta() != null && !prog.getPuntoVenta().isBlank())
+                            ? prog.getPuntoVenta().trim()
+                            : "--";
 
                     Cell cc0 = rowD.createCell(0);
                     cc0.setCellValue(emp.getCedula());
@@ -425,25 +476,29 @@ public class ExcelReporteService {
                     cc2.setCellStyle(centerDataStyle);
 
                     Cell cc3 = rowD.createCell(3);
-                    cc3.setCellValue(diaFecha.format(DATE_FMT));
-                    cc3.setCellStyle(centerDataStyle);
+                    cc3.setCellValue(pvDia);
+                    cc3.setCellStyle(!"--".equals(pvDia) ? normalDayStyle : centerDataStyle);
 
                     Cell cc4 = rowD.createCell(4);
-                    cc4.setCellValue(nombresDias[d]);
+                    cc4.setCellValue(diaFecha.format(DATE_FMT));
                     cc4.setCellStyle(centerDataStyle);
+
+                    Cell cc5 = rowD.createCell(5);
+                    cc5.setCellValue(nombresDias[d]);
+                    cc5.setCellStyle(centerDataStyle);
 
                     if (prog == null || prog.getTipoNovedadPrecargada() == TipoNovedad.DESCANSO) {
                         String novTxt = (prog != null && prog.getTipoNovedadPrecargada() != null) ? prog.getTipoNovedadPrecargada().name() : "DESCANSO";
-                        Cell cc5 = rowD.createCell(5); cc5.setCellValue(novTxt); cc5.setCellStyle(esDom ? domingoDescansoStyle : descansoStyle);
-                        Cell cc6 = rowD.createCell(6); cc6.setCellValue("--"); cc6.setCellStyle(esDom ? domingoDescansoStyle : descansoStyle);
-                        Cell cc7 = rowD.createCell(7); cc7.setCellValue("0 min"); cc7.setCellStyle(centerDataStyle);
-                        Cell cc8 = rowD.createCell(8); cc8.setCellValue("0 hrs"); cc8.setCellStyle(totalStyle);
+                        Cell cc6 = rowD.createCell(6); cc6.setCellValue(novTxt); cc6.setCellStyle(esDom ? domingoDescansoStyle : descansoStyle);
+                        Cell cc7 = rowD.createCell(7); cc7.setCellValue("--"); cc7.setCellStyle(esDom ? domingoDescansoStyle : descansoStyle);
+                        Cell cc8 = rowD.createCell(8); cc8.setCellValue("0 min"); cc8.setCellStyle(centerDataStyle);
+                        Cell cc9 = rowD.createCell(9); cc9.setCellValue("0 hrs"); cc9.setCellStyle(totalStyle);
                     } else if (prog.getTipoNovedadPrecargada() != null && prog.getTipoNovedadPrecargada() != TipoNovedad.NINGUNA) {
                         String novTxt = prog.getTipoNovedadPrecargada().name();
-                        Cell cc5 = rowD.createCell(5); cc5.setCellValue(novTxt); cc5.setCellStyle(novedadStyle);
-                        Cell cc6 = rowD.createCell(6); cc6.setCellValue("--"); cc6.setCellStyle(novedadStyle);
-                        Cell cc7 = rowD.createCell(7); cc7.setCellValue("0 min"); cc7.setCellStyle(centerDataStyle);
-                        Cell cc8 = rowD.createCell(8); cc8.setCellValue("0 hrs"); cc8.setCellStyle(totalStyle);
+                        Cell cc6 = rowD.createCell(6); cc6.setCellValue(novTxt); cc6.setCellStyle(novedadStyle);
+                        Cell cc7 = rowD.createCell(7); cc7.setCellValue("--"); cc7.setCellStyle(novedadStyle);
+                        Cell cc8 = rowD.createCell(8); cc8.setCellValue("0 min"); cc8.setCellStyle(centerDataStyle);
+                        Cell cc9 = rowD.createCell(9); cc9.setCellValue("0 hrs"); cc9.setCellStyle(totalStyle);
                     } else {
                         LocalTime ent = prog.getHoraEntradaProgramada();
                         LocalTime sal = prog.getHoraSalidaProgramada() != null ? prog.getHoraSalidaProgramada() : ent.plusHours(8);
@@ -455,12 +510,12 @@ public class ExcelReporteService {
                         double hrsDia = minNetos / 60.0;
                         totalHorasDia += hrsDia;
 
-                        Cell cc5 = rowD.createCell(5); cc5.setCellValue(ent.format(SHORT_TIME_FMT)); cc5.setCellStyle(esDom ? domingoTurnoStyle : normalDayStyle);
-                        Cell cc6 = rowD.createCell(6); cc6.setCellValue(sal.format(SHORT_TIME_FMT)); cc6.setCellStyle(esDom ? domingoTurnoStyle : normalDayStyle);
-                        Cell cc7 = rowD.createCell(7); cc7.setCellValue(minAlm + " min"); cc7.setCellStyle(centerDataStyle);
-                        Cell cc8 = rowD.createCell(8);
-                        cc8.setCellValue((hrsDia % 1 == 0) ? String.format("%.0f hrs", hrsDia) : String.format("%.1f hrs", hrsDia));
-                        cc8.setCellStyle(totalStyle);
+                        Cell cc6 = rowD.createCell(6); cc6.setCellValue(ent.format(SHORT_TIME_FMT)); cc6.setCellStyle(esDom ? domingoTurnoStyle : normalDayStyle);
+                        Cell cc7 = rowD.createCell(7); cc7.setCellValue(sal.format(SHORT_TIME_FMT)); cc7.setCellStyle(esDom ? domingoTurnoStyle : normalDayStyle);
+                        Cell cc8 = rowD.createCell(8); cc8.setCellValue(minAlm + " min"); cc8.setCellStyle(centerDataStyle);
+                        Cell cc9 = rowD.createCell(9);
+                        cc9.setCellValue((hrsDia % 1 == 0) ? String.format("%.0f hrs", hrsDia) : String.format("%.1f hrs", hrsDia));
+                        cc9.setCellStyle(totalStyle);
                     }
                 }
 
@@ -469,23 +524,26 @@ public class ExcelReporteService {
                 Cell totDiaLbl = totDiaRow.createCell(0);
                 totDiaLbl.setCellValue("TOTAL HORAS PROGRAMADAS — " + nombresDias[d].toUpperCase() + " " + diaFecha.format(DATE_FMT));
                 totDiaLbl.setCellStyle(titleStyle);
-                sheetDia.addMergedRegion(new CellRangeAddress(rDiaIdx, rDiaIdx, 0, 7));
-                for (int k = 1; k <= 7; k++) {
+                sheetDia.addMergedRegion(new CellRangeAddress(rDiaIdx, rDiaIdx, 0, 8));
+                for (int k = 1; k <= 8; k++) {
                     totDiaRow.createCell(k).setCellStyle(titleStyle);
                 }
-                Cell totDiaVal = totDiaRow.createCell(8);
+                Cell totDiaVal = totDiaRow.createCell(9);
                 totDiaVal.setCellValue((totalHorasDia % 1 == 0) ? String.format("%.0f hrs", totalHorasDia) : String.format("%.1f hrs", totalHorasDia));
                 totDiaVal.setCellStyle(headerStyle);
+
+                agregarPieDireccionesPuntosVenta(workbook, sheetDia, rDiaIdx + 2, 10, titleStyle);
 
                 sheetDia.setColumnWidth(0, 14 * 256);
                 sheetDia.setColumnWidth(1, 26 * 256);
                 sheetDia.setColumnWidth(2, 18 * 256);
-                sheetDia.setColumnWidth(3, 14 * 256);
+                sheetDia.setColumnWidth(3, 20 * 256);
                 sheetDia.setColumnWidth(4, 14 * 256);
-                sheetDia.setColumnWidth(5, 16 * 256);
+                sheetDia.setColumnWidth(5, 14 * 256);
                 sheetDia.setColumnWidth(6, 16 * 256);
                 sheetDia.setColumnWidth(7, 16 * 256);
-                sheetDia.setColumnWidth(8, 18 * 256);
+                sheetDia.setColumnWidth(8, 16 * 256);
+                sheetDia.setColumnWidth(9, 18 * 256);
             }
 
             workbook.write(out);
@@ -1498,6 +1556,81 @@ public class ExcelReporteService {
      */
     public byte[] generarReporteAsistenciaExcel(LocalDate inicio, LocalDate fin, String tipoPeriodo) throws IOException {
         return generarNominaAsistenciaExcel(inicio, fin);
+    }
+
+    private void agregarPieDireccionesPuntosVenta(Workbook workbook, Sheet sheet, int startRow, int totalCols, CellStyle titleStyle) {
+        int splitCol = totalCols / 2;
+
+        XSSFFont fontZona = (XSSFFont) workbook.createFont();
+        fontZona.setBold(true);
+        fontZona.setColor(IndexedColors.WHITE.getIndex());
+        fontZona.setFontHeightInPoints((short) 10);
+
+        XSSFFont fontDir = (XSSFFont) workbook.createFont();
+        fontDir.setFontHeightInPoints((short) 9.5);
+        fontDir.setColor(IndexedColors.BLACK.getIndex());
+
+        CellStyle zonaHeaderStyle = workbook.createCellStyle();
+        ((XSSFCellStyle) zonaHeaderStyle).setFillForegroundColor(new XSSFColor(new byte[] { (byte) 51, (byte) 65, (byte) 85 }, null));
+        zonaHeaderStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        zonaHeaderStyle.setAlignment(HorizontalAlignment.CENTER);
+        zonaHeaderStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        zonaHeaderStyle.setFont(fontZona);
+        aplicarBordes(zonaHeaderStyle);
+
+        CellStyle dirEvenStyle = workbook.createCellStyle();
+        ((XSSFCellStyle) dirEvenStyle).setFillForegroundColor(new XSSFColor(new byte[] { (byte) 248, (byte) 250, (byte) 252 }, null));
+        dirEvenStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        dirEvenStyle.setAlignment(HorizontalAlignment.LEFT);
+        dirEvenStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        dirEvenStyle.setFont(fontDir);
+        aplicarBordes(dirEvenStyle);
+
+        CellStyle dirOddStyle = workbook.createCellStyle();
+        dirOddStyle.setAlignment(HorizontalAlignment.LEFT);
+        dirOddStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        dirOddStyle.setFont(fontDir);
+        aplicarBordes(dirOddStyle);
+
+        Row rBanner = sheet.createRow(startRow);
+        rBanner.setHeightInPoints(24);
+        for (int c = 0; c < totalCols; c++) {
+            Cell cell = rBanner.createCell(c);
+            if (c == 0) cell.setCellValue("PUNTOS DE VENTA Y DIRECCIONES — GUÍA DE REFERENCIA (VENTAS)");
+            cell.setCellStyle(titleStyle);
+        }
+        sheet.addMergedRegion(new CellRangeAddress(startRow, startRow, 0, totalCols - 1));
+
+        Row rZonas = sheet.createRow(startRow + 1);
+        rZonas.setHeightInPoints(22);
+        for (int c = 0; c < totalCols; c++) {
+            Cell cell = rZonas.createCell(c);
+            if (c == 0) cell.setCellValue("ZONA SUR");
+            else if (c == splitCol) cell.setCellValue("ZONA NORTE");
+            cell.setCellStyle(zonaHeaderStyle);
+        }
+        sheet.addMergedRegion(new CellRangeAddress(startRow + 1, startRow + 1, 0, splitCol - 1));
+        sheet.addMergedRegion(new CellRangeAddress(startRow + 1, startRow + 1, splitCol, totalCols - 1));
+
+        int totalFilas = Math.max(PUNTOS_ZONA_SUR_LINEAS.size(), PUNTOS_ZONA_NORTE_LINEAS.size());
+        for (int i = 0; i < totalFilas; i++) {
+            int rowNum = startRow + 2 + i;
+            Row rItem = sheet.createRow(rowNum);
+            rItem.setHeightInPoints(20);
+            CellStyle itemStyle = (i % 2 == 0) ? dirEvenStyle : dirOddStyle;
+
+            for (int c = 0; c < totalCols; c++) {
+                Cell cell = rItem.createCell(c);
+                if (c == 0 && i < PUNTOS_ZONA_SUR_LINEAS.size()) {
+                    cell.setCellValue(PUNTOS_ZONA_SUR_LINEAS.get(i));
+                } else if (c == splitCol && i < PUNTOS_ZONA_NORTE_LINEAS.size()) {
+                    cell.setCellValue(PUNTOS_ZONA_NORTE_LINEAS.get(i));
+                }
+                cell.setCellStyle(itemStyle);
+            }
+            sheet.addMergedRegion(new CellRangeAddress(rowNum, rowNum, 0, splitCol - 1));
+            sheet.addMergedRegion(new CellRangeAddress(rowNum, rowNum, splitCol, totalCols - 1));
+        }
     }
 
     private void aplicarBordes(CellStyle style) {

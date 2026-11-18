@@ -27,14 +27,15 @@ public class ReporteExcelController {
     @GetMapping({"/excel/malla-horarios", "/asistencia/excel/malla-horarios", "/excel/matriz-semanal", "/asistencia/excel/matriz-semanal", "/malla-horarios"})
     public ResponseEntity<byte[]> descargarMallaHorarios(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicioSemana) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicioSemana,
+            @RequestParam(required = false) String area) {
 
         LocalDate fechaBase = fechaInicio != null ? fechaInicio : (fechaInicioSemana != null ? fechaInicioSemana : LocalDate.now());
         int dayVal = fechaBase.getDayOfWeek().getValue();
         LocalDate lunes = fechaBase.minusDays(dayVal - 1);
 
         try {
-            byte[] excelBytes = excelReporteService.generarMatrizSemanalExcel(lunes);
+            byte[] excelBytes = excelReporteService.generarMatrizSemanalExcel(lunes, area);
             String filename = "malla-horarios-semana-" + lunes + ".xlsx";
 
             return ResponseEntity.ok()

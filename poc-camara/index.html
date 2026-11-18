@@ -1088,7 +1088,7 @@
               <table class="w-full text-left text-xs text-slate-300 border-collapse">
                 <thead class="bg-[#1B365D] text-white font-bold sticky top-0 z-20 shadow-md select-none">
                   <tr>
-                    <th class="p-3 border-r border-blue-900/60 min-w-[200px] bg-[#142847]">Empleado / Cargo</th>
+                    <th class="p-3 border-r border-blue-900/60 min-w-[215px] bg-[#142847]">Empleado / Cargo</th>
                     <th v-for="(d, idx) in diasSemanaMatriz" :key="d.fecha"
                         class="p-2.5 border-r border-blue-900/60 text-center min-w-[130px] transition"
                         :class="idx === 6 ? 'bg-[#2A2312] border-amber-500/80' : ''">
@@ -1113,6 +1113,12 @@
                           {{ emp.area || 'PLANTA' }}
                         </span>
                       </div>
+                      <!-- Resumen punto asignado en Modo Lectura (solo Ventas) -->
+                      <div v-if="horariosBloqueados && esEmpleadoVentas(emp) && resumenPuntoSemanaEmpleado(emp.idEmpleado)" class="mt-1.5">
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-sky-950/90 border border-sky-600/60 text-[9px] font-black text-sky-300">
+                          📍 {{ resumenPuntoSemanaEmpleado(emp.idEmpleado) }}
+                        </span>
+                      </div>
                       <!-- Botón rápido por empleado (solo en modo edición) -->
                       <div v-if="!horariosBloqueados" class="flex items-center gap-1 mt-1.5">
                         <button type="button" @click="copiarLunesASemana(emp.idEmpleado, false)"
@@ -1126,6 +1132,22 @@
                                 title="Copiar horario de lunes a sábado para este empleado">
                           ⚡ L→S
                         </button>
+                      </div>
+                      <!-- Asignación rápida semanal de Punto de Venta (exclusivo área VENTAS) -->
+                      <div v-if="!horariosBloqueados && esEmpleadoVentas(emp)" class="mt-2 pt-1.5 border-t border-slate-800/80">
+                        <label class="block text-[9px] font-bold text-emerald-400 uppercase tracking-wider mb-0.5">📍 Punto semanal (Ventas):</label>
+                        <select :value="puntoSemanalVentas[emp.idEmpleado] || ''"
+                                @change="aplicarPuntoSemanalEmpleado(emp.idEmpleado, $event.target.value)"
+                                title="Asignar este punto de venta a los turnos de toda la semana"
+                                class="w-full bg-slate-900 border border-emerald-700/60 focus:border-emerald-400 rounded-lg px-1.5 py-1 text-[10px] font-bold text-emerald-300">
+                          <option value="">-- Punto semanal --</option>
+                          <optgroup label="ZONA SUR">
+                            <option v-for="pv in PUNTOS_VENTA_ZONA_SUR" :key="'sem-sur-' + pv.nombre" :value="pv.nombre">{{ pv.nombre }}</option>
+                          </optgroup>
+                          <optgroup label="ZONA NORTE">
+                            <option v-for="pv in PUNTOS_VENTA_ZONA_NORTE" :key="'sem-norte-' + pv.nombre" :value="pv.nombre">{{ pv.nombre }}</option>
+                          </optgroup>
+                        </select>
                       </div>
                     </td>
 
@@ -1151,6 +1173,10 @@
                           <span class="px-2 py-0.5 rounded font-mono font-bold text-[11px] bg-emerald-950/80 border border-emerald-600/50 text-emerald-300">
                             {{ getCelda(emp.idEmpleado, d.fecha).horaEntrada }} - {{ getCelda(emp.idEmpleado, d.fecha).horaSalida }}
                           </span>
+                          <span v-if="esEmpleadoVentas(emp) && getCelda(emp.idEmpleado, d.fecha).puntoVenta"
+                                class="mt-1 px-2 py-0.5 rounded bg-sky-950/90 border border-sky-500/60 text-[9px] font-black text-sky-300 tracking-wide">
+                            📍 {{ getCelda(emp.idEmpleado, d.fecha).puntoVenta }}
+                          </span>
                           <span class="text-[9px] text-slate-400 mt-0.5">
                             {{ getHorasNetasCelda(emp.idEmpleado, d.fecha) }}h netas
                             <span class="text-slate-500 font-mono">({{ getCelda(emp.idEmpleado, d.fecha).minutosAlmuerzo || 0 }}m alm)</span>
@@ -1164,9 +1190,13 @@
                       <!-- VISTA CUANDO ESTÁ DESBLOQUEADO (MODO EDICIÓN) -->
                       <div v-else class="space-y-1.5 flex flex-col items-center">
                         <!-- Si ya tiene asistencia biométrica, no se puede alterar -->
-                        <div v-if="getCelda(emp.idEmpleado, d.fecha).tieneAsistencia" class="text-center py-1">
+                        <div v-if="getCelda(emp.idEmpleado, d.fecha).tieneAsistencia" class="text-center py-1 flex flex-col items-center">
                           <span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-700">
                             {{ getCelda(emp.idEmpleado, d.fecha).horaEntrada }} - {{ getCelda(emp.idEmpleado, d.fecha).horaSalida }}
+                          </span>
+                          <span v-if="esEmpleadoVentas(emp) && getCelda(emp.idEmpleado, d.fecha).puntoVenta"
+                                class="mt-1 px-1.5 py-0.5 rounded bg-sky-950/90 border border-sky-600/60 text-[9px] font-black text-sky-300">
+                            📍 {{ getCelda(emp.idEmpleado, d.fecha).puntoVenta }}
                           </span>
                           <div class="text-[9px] text-amber-400 font-bold mt-0.5">🔒 Ejecutado</div>
                         </div>
@@ -1213,6 +1243,23 @@
                             </select>
                           </div>
 
+                          <!-- Selector de Punto de Venta por día (exclusivo área VENTAS, estrictamente informativo) -->
+                          <div v-if="esEmpleadoVentas(emp) && getCelda(emp.idEmpleado, d.fecha).tipo === 'TURNO'" class="w-full pt-0.5">
+                            <select v-model="getCelda(emp.idEmpleado, d.fecha).puntoVenta"
+                                    @change="sincronizarPuntoSemanalDesdeCeldas(emp.idEmpleado)"
+                                    title="Punto de venta asignado para este día (solo informativo)"
+                                    class="w-full bg-slate-950 border rounded px-1 py-0.5 text-[10px] font-bold text-center transition"
+                                    :class="getCelda(emp.idEmpleado, d.fecha).puntoVenta ? 'border-emerald-500/70 text-emerald-300' : 'border-amber-500/50 text-amber-300'">
+                              <option value="">📍 Punto...</option>
+                              <optgroup label="ZONA SUR">
+                                <option v-for="pv in PUNTOS_VENTA_ZONA_SUR" :key="'dia-sur-' + pv.nombre" :value="pv.nombre">{{ pv.nombre }}</option>
+                              </optgroup>
+                              <optgroup label="ZONA NORTE">
+                                <option v-for="pv in PUNTOS_VENTA_ZONA_NORTE" :key="'dia-norte-' + pv.nombre" :value="pv.nombre">{{ pv.nombre }}</option>
+                              </optgroup>
+                            </select>
+                          </div>
+
                           <!-- Subtexto de horas netas calculadas -->
                           <div v-if="getCelda(emp.idEmpleado, d.fecha).tipo === 'TURNO'" class="text-[9px] text-slate-400 font-mono">
                             {{ getHorasNetasCelda(emp.idEmpleado, d.fecha) }}h netas
@@ -1253,8 +1300,55 @@
           </div>
 
           <p class="text-[11px] text-slate-500 pt-2 border-t border-slate-800">
-            * Integridad Operacional: Los horarios guardados y confirmados quedan bloqueados contra manipulaciones. Si un turno ya registra asistencia biométrica, su marcación queda congelada. La exportación a Excel refleja exactamente esta matriz.
+            * Integridad Operacional: Los horarios guardados y confirmados quedan bloqueados contra manipulaciones. Si un turno ya registra asistencia biométrica, su marcación queda congelada. La exportación a Excel refleja exactamente esta matriz. La asignación de punto de venta en Ventas es estrictamente informativa y no altera cálculos de nómina ni reglas de marcación.
           </p>
+
+          <!-- SECCIÓN PERMANENTE DE DIRECCIONES DE PUNTOS DE VENTA AL PIE DE LA HOJA -->
+          <div class="bg-slate-900/95 p-5 rounded-2xl border border-slate-800 shadow-xl space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
+              <div>
+                <h4 class="text-sm font-black text-white flex items-center gap-2">
+                  <span>📍 Puntos de Venta y Direcciones — Guía de Referencia Permanente (Ventas)</span>
+                </h4>
+                <p class="text-[11px] text-slate-400 mt-0.5">
+                  Listado oficial de sedes comerciales por zona como guía de apoyo permanente, independiente del turno asignado.
+                </p>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-700/60 self-start sm:self-center">
+                10 Puntos Oficiales (Sur &bull; Norte)
+              </span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <!-- ZONA SUR -->
+              <div class="bg-slate-950/90 rounded-xl border border-slate-800 p-4 space-y-2.5">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span class="text-xs font-black tracking-wider text-amber-300 uppercase">ZONA SUR</span>
+                  <span class="text-[10px] font-mono text-slate-500">5 Puntos</span>
+                </div>
+                <ol class="space-y-1.5 text-xs">
+                  <li v-for="pv in PUNTOS_VENTA_ZONA_SUR" :key="'ref-sur-' + pv.numero" class="flex items-baseline gap-1.5 text-slate-300">
+                    <span class="font-mono font-bold text-amber-400">{{ pv.numero }}.</span>
+                    <span><strong class="text-white">{{ pv.nombre }}:</strong> {{ pv.direccion }}</span>
+                  </li>
+                </ol>
+              </div>
+
+              <!-- ZONA NORTE -->
+              <div class="bg-slate-950/90 rounded-xl border border-slate-800 p-4 space-y-2.5">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span class="text-xs font-black tracking-wider text-sky-300 uppercase">ZONA NORTE</span>
+                  <span class="text-[10px] font-mono text-slate-500">5 Puntos</span>
+                </div>
+                <ol class="space-y-1.5 text-xs">
+                  <li v-for="pv in PUNTOS_VENTA_ZONA_NORTE" :key="'ref-norte-' + pv.numero" class="flex items-baseline gap-1.5 text-slate-300">
+                    <span class="font-mono font-bold text-sky-400">{{ pv.numero }}.</span>
+                    <span><strong class="text-white">{{ pv.nombre }}:</strong> {{ pv.direccion }}</span>
+                  </li>
+                </ol>
+              </div>
+            </div>
+          </div>
 
         </div>
 
@@ -2881,12 +2975,80 @@
         const resultadoMatriz = ref(null);
         const filtroAreaMatriz = ref('TODAS');
         const matrizHorarios = ref({});
+        const puntoSemanalVentas = ref({});
         const mostrarModalFinalizarSemana = ref(false);
         const mostrarModalDesbloquearPin = ref(false);
         const pinDesbloqueoInput = ref('');
         const errorPinDesbloqueo = ref('');
         const procesandoDesbloqueoPin = ref(false);
         const verClaveDesbloqueo = ref(false);
+
+        // Puntos de Venta Oficiales por Zona (estrictamente informativos para el módulo de VENTAS)
+        const PUNTOS_VENTA_ZONA_SUR = [
+          { numero: 1, nombre: 'DRIVER PLAZA', direccion: 'transversal 99 # 70a-89' },
+          { numero: 2, nombre: 'BAZAAR', direccion: 'CALLE 12B # 71D-61' },
+          { numero: 3, nombre: 'COLSEGUROS', direccion: 'CARRERA 10 # 17-72' },
+          { numero: 4, nombre: 'PLAZA 1', direccion: 'carrera 65 n° 11-50 local 211' },
+          { numero: 5, nombre: 'PLAZA 2', direccion: 'carrera 65 n° 11-50 local 283' }
+        ];
+        const PUNTOS_VENTA_ZONA_NORTE = [
+          { numero: 1, nombre: 'BULEVAR', direccion: 'Carrera 58 # 127-59' },
+          { numero: 2, nombre: 'PORTAL 80', direccion: 'Carrera 68 No. 90-88' },
+          { numero: 3, nombre: 'COUNTRY', direccion: 'Calle 134 No. 9-51' },
+          { numero: 4, nombre: 'CAFAM FLORESTA', direccion: 'Transversal 100a No. 80a-20' },
+          { numero: 5, nombre: 'MAZUREN', direccion: 'Cra 46 #150-46' }
+        ];
+
+        const esEmpleadoVentas = (emp) => {
+          return ((emp && emp.area) ? emp.area : 'PLANTA').toUpperCase() === 'VENTAS';
+        };
+
+        const esEmpleadoVentasPorId = (empId) => {
+          const emp = listaEmpleados.value.find(e => e.idEmpleado === empId);
+          return esEmpleadoVentas(emp);
+        };
+
+        const sincronizarPuntoSemanalDesdeCeldas = (empId) => {
+          if (!esEmpleadoVentasPorId(empId) || !matrizHorarios.value[empId]) return;
+          const turnos = [];
+          for (const d of diasSemanaMatriz.value) {
+            const c = matrizHorarios.value[empId][d.fecha];
+            if (c && c.tipo === 'TURNO') turnos.push(c);
+          }
+          if (turnos.length === 0) return;
+          const asignados = turnos.map(c => (c.puntoVenta || '').trim()).filter(Boolean);
+          if (asignados.length === turnos.length && new Set(asignados).size === 1) {
+            puntoSemanalVentas.value[empId] = asignados[0];
+          } else if (new Set(asignados).size > 1 || asignados.length === 0) {
+            puntoSemanalVentas.value[empId] = '';
+          }
+        };
+
+        const aplicarPuntoSemanalEmpleado = (empId, nuevoPunto) => {
+          if (horariosBloqueados.value || !esEmpleadoVentasPorId(empId)) return;
+          puntoSemanalVentas.value[empId] = nuevoPunto || '';
+          for (const d of diasSemanaMatriz.value) {
+            const c = getCelda(empId, d.fecha);
+            if (c && !c.tieneAsistencia && c.tipo === 'TURNO') {
+              c.puntoVenta = nuevoPunto || '';
+            }
+          }
+        };
+
+        const resumenPuntoSemanaEmpleado = (empId) => {
+          if (!esEmpleadoVentasPorId(empId) || !matrizHorarios.value[empId]) return '';
+          const unicos = [];
+          for (const d of diasSemanaMatriz.value) {
+            const c = matrizHorarios.value[empId][d.fecha];
+            if (c && c.tipo === 'TURNO' && c.puntoVenta && !unicos.includes(c.puntoVenta)) {
+              unicos.push(c.puntoVenta);
+            }
+          }
+          if (unicos.length === 0) return '';
+          if (unicos.length === 1) return unicos[0];
+          if (unicos.length === 2) return `${unicos[0]} / ${unicos[1]}`;
+          return `Rotación (${unicos.length} puntos)`;
+        };
 
         const diasSemanaMatriz = computed(() => {
           const nombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -2922,7 +3084,8 @@
 
         const urlMatrizSemanalExcel = computed(() => {
           const lunes = diasSemanaMatriz.value[0] ? diasSemanaMatriz.value[0].fecha : hoyStr;
-          return `${apiBaseUrl}/api/reportes/excel/malla-horarios?fechaInicio=${lunes}`;
+          const areaParam = filtroAreaMatriz.value && filtroAreaMatriz.value !== 'TODAS' ? `&area=${encodeURIComponent(filtroAreaMatriz.value)}` : '';
+          return `${apiBaseUrl}/api/reportes/excel/malla-horarios?fechaInicio=${lunes}${areaParam}`;
         });
 
         const getCelda = (empId, fecha) => {
@@ -2938,6 +3101,7 @@
               horaSalida: '17:00',
               minutosAlmuerzo: 0,
               tipoNovedad: 'NINGUNA',
+              puntoVenta: '',
               horasExtras: false,
               tieneAsistencia: false,
               modoPersonalizado: false
@@ -2971,23 +3135,36 @@
           const celda = getCelda(empId, fecha);
           if (!celda || celda.tieneAsistencia || horariosBloqueados.value) return;
 
+          const esVentas = esEmpleadoVentasPorId(empId);
           celda.preset = nuevoPreset;
           if (nuevoPreset === 'DESCANSO') {
             celda.tipo = 'DESCANSO';
             celda.tipoNovedad = 'DESCANSO';
+            celda.puntoVenta = '';
             celda.modoPersonalizado = false;
           } else if (['VACACIONES', 'INCAPACIDAD', 'PERMISO', 'AUSENCIA'].includes(nuevoPreset)) {
             celda.tipo = 'NOVEDAD';
             celda.tipoNovedad = nuevoPreset;
+            celda.puntoVenta = '';
             celda.modoPersonalizado = false;
           } else if (nuevoPreset === 'CUSTOM') {
             celda.tipo = 'TURNO';
             celda.tipoNovedad = 'NINGUNA';
             celda.modoPersonalizado = true;
+            if (esVentas && !celda.puntoVenta && puntoSemanalVentas.value[empId]) {
+              celda.puntoVenta = puntoSemanalVentas.value[empId];
+            } else if (!esVentas) {
+              celda.puntoVenta = '';
+            }
           } else {
             celda.tipo = 'TURNO';
             celda.tipoNovedad = 'NINGUNA';
             celda.modoPersonalizado = false;
+            if (esVentas && !celda.puntoVenta && puntoSemanalVentas.value[empId]) {
+              celda.puntoVenta = puntoSemanalVentas.value[empId];
+            } else if (!esVentas) {
+              celda.puntoVenta = '';
+            }
             const parts = nuevoPreset.split('-');
             if (parts.length === 2) {
               celda.horaEntrada = parts[0];
@@ -3048,6 +3225,7 @@
           if (novedad && novedad !== 'NINGUNA') return novedad;
           const ent = (hEnt || '').substring(0, 5);
           const sal = (hSal || '').substring(0, 5);
+          if (ent === '06:00' && sal === '14:30') return '06:00-14:30';
           if (ent === '08:00' && sal === '17:00') return '08:00-17:00';
           if (ent === '07:00' && sal === '16:00') return '07:00-16:00';
           if (ent === '06:00' && sal === '14:00') return '06:00-14:00';
@@ -3078,6 +3256,7 @@
 
               const fechaLunesActual = diasSemanaMatriz.value[0]?.fecha;
               const bloqLocal = fechaLunesActual ? (safeStorage.getItem('salgueros_bloqueo_semana_' + fechaLunesActual) === 'true') : false;
+              const puntosCacheLocal = fechaLunesActual ? (safeStorage.getJSON('salgueros_puntos_ventas_' + fechaLunesActual, {}) || {}) : {};
 
               if (turnos.length > 0) {
                 horariosBloqueados.value = algunBloqueado || bloqLocal;
@@ -3086,14 +3265,30 @@
               }
 
               const nuevoEstado = {};
+              const nuevosPuntosSemana = {};
               for (const emp of listaEmpleados.value) {
                 nuevoEstado[emp.idEmpleado] = {};
+                const esVentas = esEmpleadoVentas(emp);
+                const puntosTurnosEmp = [];
+                let totalTurnosEmp = 0;
+
                 for (const d of diasSemanaMatriz.value) {
                   const t = mapa[emp.idEmpleado] ? mapa[emp.idEmpleado][d.fecha] : null;
                   if (t) {
                     const esDescanso = t.novedad === 'DESCANSO';
                     const esNovedad = t.novedad && t.novedad !== 'NINGUNA' && !esDescanso;
+                    const esTurno = !esDescanso && !esNovedad;
                     const presetDetectado = detectarPreset(t.horaEntrada, t.horaSalida, t.minutosAlmuerzo, t.novedad);
+                    let pvVal = '';
+                    if (esVentas && esTurno) {
+                      if (Object.prototype.hasOwnProperty.call(t, 'puntoVenta')) {
+                        pvVal = t.puntoVenta || '';
+                      } else if (puntosCacheLocal[emp.idEmpleado]) {
+                        pvVal = puntosCacheLocal[emp.idEmpleado][d.fecha] || '';
+                      }
+                      totalTurnosEmp++;
+                      if (pvVal) puntosTurnosEmp.push(pvVal);
+                    }
                     nuevoEstado[emp.idEmpleado][d.fecha] = {
                       idProgramacion: t.idProgramacion,
                       idEmpleado: emp.idEmpleado,
@@ -3104,6 +3299,7 @@
                       horaSalida: t.horaSalida ? t.horaSalida.substring(0, 5) : '17:00',
                       minutosAlmuerzo: t.minutosAlmuerzo != null ? t.minutosAlmuerzo : 0,
                       tipoNovedad: t.novedad || 'NINGUNA',
+                      puntoVenta: pvVal,
                       horasExtras: !!t.horasExtras,
                       tieneAsistencia: !!t.tieneAsistencia,
                       modoPersonalizado: presetDetectado === 'CUSTOM'
@@ -3119,14 +3315,21 @@
                       horaSalida: '17:00',
                       minutosAlmuerzo: 0,
                       tipoNovedad: 'NINGUNA',
+                      puntoVenta: '',
                       horasExtras: false,
                       tieneAsistencia: false,
                       modoPersonalizado: false
                     };
                   }
                 }
+                if (esVentas && totalTurnosEmp > 0 && puntosTurnosEmp.length === totalTurnosEmp && new Set(puntosTurnosEmp).size === 1) {
+                  nuevosPuntosSemana[emp.idEmpleado] = puntosTurnosEmp[0];
+                } else {
+                  nuevosPuntosSemana[emp.idEmpleado] = '';
+                }
               }
               matrizHorarios.value = nuevoEstado;
+              puntoSemanalVentas.value = nuevosPuntosSemana;
             }
           } catch (e) {
             console.error('Error al cargar programación semanal:', e);
@@ -3141,11 +3344,18 @@
 
           try {
             const listaTurnosPayload = [];
+            const puntosCache = {};
             for (const emp of listaEmpleados.value) {
               if (!matrizHorarios.value[emp.idEmpleado]) continue;
+              const esVentas = esEmpleadoVentas(emp);
               for (const d of diasSemanaMatriz.value) {
                 const c = matrizHorarios.value[emp.idEmpleado][d.fecha];
                 if (!c) continue;
+                const pvGuardar = (esVentas && c.tipo === 'TURNO' && c.puntoVenta) ? c.puntoVenta : null;
+                if (pvGuardar) {
+                  if (!puntosCache[emp.idEmpleado]) puntosCache[emp.idEmpleado] = {};
+                  puntosCache[emp.idEmpleado][d.fecha] = pvGuardar;
+                }
                 listaTurnosPayload.push({
                   idEmpleado: emp.idEmpleado,
                   fecha: d.fecha,
@@ -3154,7 +3364,8 @@
                   horaSalida: (c.horaSalida || '17:00').length === 5 ? c.horaSalida + ':00' : c.horaSalida,
                   minutosAlmuerzo: c.minutosAlmuerzo,
                   horasExtras: c.horasExtras,
-                  tipoNovedad: c.tipoNovedad || 'NINGUNA'
+                  tipoNovedad: c.tipoNovedad || 'NINGUNA',
+                  puntoVenta: pvGuardar
                 });
               }
             }
@@ -3191,6 +3402,7 @@
                         minutosAlmuerzo: t.minutosAlmuerzo,
                         horasExtras: t.horasExtras,
                         tipoNovedad: t.tipoNovedad === 'DESCANSO' ? 'DESCANSO' : (t.tipo === 'DESCANSO' ? 'DESCANSO' : t.tipoNovedad),
+                        puntoVenta: t.puntoVenta,
                         bloqueado: true
                       })
                     });
@@ -3201,6 +3413,7 @@
                 const fLunes = diasSemanaMatriz.value[0]?.fecha;
                 if (fLunes) {
                   safeStorage.setItem('salgueros_bloqueo_semana_' + fLunes, 'true');
+                  safeStorage.setItem('salgueros_puntos_ventas_' + fLunes, JSON.stringify(puntosCache));
                 }
                 resultadoMatriz.value = {
                   exito: true,
@@ -3224,6 +3437,7 @@
               const fLunes = diasSemanaMatriz.value[0]?.fecha;
               if (fLunes) {
                 safeStorage.setItem('salgueros_bloqueo_semana_' + fLunes, 'true');
+                safeStorage.setItem('salgueros_puntos_ventas_' + fLunes, JSON.stringify(puntosCache));
               }
               resultadoMatriz.value = {
                 exito: true,
@@ -3253,7 +3467,8 @@
           const filename = `malla-horarios-semana-${fechaLunes}.xlsx`;
 
           if (!window.XLSX) {
-            window.open(`${apiBaseUrl}/api/reportes/excel/malla-horarios?fechaInicio=${fechaLunes}`, '_blank');
+            const areaParam = filtroAreaMatriz.value && filtroAreaMatriz.value !== 'TODAS' ? `&area=${encodeURIComponent(filtroAreaMatriz.value)}` : '';
+            window.open(`${apiBaseUrl}/api/reportes/excel/malla-horarios?fechaInicio=${fechaLunes}${areaParam}`, '_blank');
             return;
           }
 
@@ -3322,12 +3537,18 @@
           const stTurnoNormal = {
             fill: { fgColor: { rgb: 'EFF6FF' } },
             font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '1E3A8A' } },
-            alignment: { horizontal: 'center', vertical: 'center' },
+            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
             border: borderThin
           };
           const stTurnoDomingo = {
             fill: { fgColor: { rgb: 'FEF3C7' } },
             font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: '92400E' } },
+            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+            border: borderThin
+          };
+          const stPuntoVenta = {
+            fill: { fgColor: { rgb: 'ECFDF5' } },
+            font: { name: 'Calibri', sz: 9.5, bold: true, color: { rgb: '065F46' } },
             alignment: { horizontal: 'center', vertical: 'center' },
             border: borderThin
           };
@@ -3361,6 +3582,79 @@
             alignment: { horizontal: 'center', vertical: 'center' },
             border: borderHeader
           };
+          const stZonaHeader = {
+            fill: { fgColor: { rgb: '334155' } },
+            font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: 'FFFFFF' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            border: borderHeader
+          };
+          const stDirItem = (even) => ({
+            fill: { fgColor: { rgb: even ? 'F8FAFC' : 'FFFFFF' } },
+            font: { name: 'Calibri', sz: 10, bold: false, color: { rgb: '0F172A' } },
+            alignment: { horizontal: 'left', vertical: 'center' },
+            border: borderThin
+          });
+
+          const appendPieDireccionesRows = (targetRows, totalCols) => {
+            const splitCol = Math.floor(totalCols / 2);
+            const emptyRow = () => Array(totalCols).fill('');
+            targetRows.push(emptyRow()); // Fila en blanco separadora
+            const startRow = targetRows.length;
+
+            const rBanner = emptyRow();
+            rBanner[0] = 'PUNTOS DE VENTA Y DIRECCIONES — GUÍA DE REFERENCIA (VENTAS)';
+            targetRows.push(rBanner);
+
+            const rZonas = emptyRow();
+            rZonas[0] = 'ZONA SUR';
+            rZonas[splitCol] = 'ZONA NORTE';
+            targetRows.push(rZonas);
+
+            const totalFilas = Math.max(PUNTOS_VENTA_ZONA_SUR.length, PUNTOS_VENTA_ZONA_NORTE.length);
+            for (let i = 0; i < totalFilas; i++) {
+              const rDir = emptyRow();
+              if (i < PUNTOS_VENTA_ZONA_SUR.length) {
+                const pvS = PUNTOS_VENTA_ZONA_SUR[i];
+                rDir[0] = `${pvS.numero}. ${pvS.nombre}: ${pvS.direccion}`;
+              }
+              if (i < PUNTOS_VENTA_ZONA_NORTE.length) {
+                const pvN = PUNTOS_VENTA_ZONA_NORTE[i];
+                rDir[splitCol] = `${pvN.numero}. ${pvN.nombre}: ${pvN.direccion}`;
+              }
+              targetRows.push(rDir);
+            }
+            return { startRow, splitCol, totalFilas };
+          };
+
+          const stylePieDireccionesSheet = (targetWs, merges, wsRowList, footerMeta, totalCols) => {
+            const { startRow, splitCol, totalFilas } = footerMeta;
+            wsRowList.push({ hpt: 12 }); // Fila separadora
+            wsRowList.push({ hpt: 24 }); // Banner
+            wsRowList.push({ hpt: 22 }); // ZONA SUR | ZONA NORTE
+            for (let i = 0; i < totalFilas; i++) wsRowList.push({ hpt: 20 });
+
+            merges.push({ s: { r: startRow, c: 0 }, e: { r: startRow, c: totalCols - 1 } });
+            merges.push({ s: { r: startRow + 1, c: 0 }, e: { r: startRow + 1, c: splitCol - 1 } });
+            merges.push({ s: { r: startRow + 1, c: splitCol }, e: { r: startRow + 1, c: totalCols - 1 } });
+
+            for (let c = 0; c < totalCols; c++) {
+              const refB = XLSX.utils.encode_cell({ r: startRow, c });
+              if (targetWs[refB]) targetWs[refB].s = stBannerTitle('1B365D');
+              const refZ = XLSX.utils.encode_cell({ r: startRow + 1, c });
+              if (targetWs[refZ]) targetWs[refZ].s = stZonaHeader;
+            }
+
+            for (let i = 0; i < totalFilas; i++) {
+              const rNum = startRow + 2 + i;
+              merges.push({ s: { r: rNum, c: 0 }, e: { r: rNum, c: splitCol - 1 } });
+              merges.push({ s: { r: rNum, c: splitCol }, e: { r: rNum, c: totalCols - 1 } });
+              const stDir = stDirItem(i % 2 === 0);
+              for (let c = 0; c < totalCols; c++) {
+                const refD = XLSX.utils.encode_cell({ r: rNum, c });
+                if (targetWs[refD]) targetWs[refD].s = stDir;
+              }
+            }
+          };
 
           // =========================================================================
           // PESTAÑA 1: MALLA SEMANAL DE HORARIOS (13 Columnas: A..M)
@@ -3392,10 +3686,13 @@
 
           let granTotalMin = 0;
           const metaEstilosCeldas = []; // Guardar tipo de celda por fila para aplicar estilos exactos
+          const filasConPuntoVenta = [];
 
           empleados.forEach((emp, idx) => {
             let totalMinEmp = 0;
             let maxAlmEmp = 0;
+            let tienePvFila = false;
+            const esVentas = esEmpleadoVentas(emp);
             const fila = [
               idx + 1,
               emp.cedula,
@@ -3416,7 +3713,13 @@
               } else {
                 const hEnt = (c.horaEntrada || '08:00').substring(0, 5);
                 const hSal = (c.horaSalida || '17:00').substring(0, 5);
-                fila.push(`${hEnt} - ${hSal}`);
+                const pvStr = (esVentas && c.puntoVenta) ? c.puntoVenta.trim() : '';
+                if (pvStr) {
+                  fila.push(`${hEnt} - ${hSal}\n📍 ${pvStr}`);
+                  tienePvFila = true;
+                } else {
+                  fila.push(`${hEnt} - ${hSal}`);
+                }
                 tiposDia.push(esDom ? 'TURNO_DOMINGO' : 'TURNO_NORMAL');
 
                 const pE = hEnt.split(':');
@@ -3436,6 +3739,7 @@
             fila.push(hrsEmpStr);
             rows.push(fila);
             metaEstilosCeldas.push(tiposDia);
+            filasConPuntoVenta.push(tienePvFila);
             granTotalMin += totalMinEmp;
           });
 
@@ -3443,12 +3747,14 @@
           const granTotalStr = granTotalHrs % 1 === 0 ? `${granTotalHrs.toFixed(0)} hrs` : `${granTotalHrs.toFixed(1)} hrs`;
           const filaTotal = ['TOTAL GENERAL DE HORAS PROGRAMADAS EN LA SEMANA', '', '', '', '', '', '', '', '', '', '', '', granTotalStr];
           rows.push(filaTotal);
+          const totalRowIdx = rows.length - 1;
+
+          const footerMetaMain = appendPieDireccionesRows(rows, 13);
 
           const ws = XLSX.utils.aoa_to_sheet(rows);
 
-          // Regiones combinadas (Banner Superior y Fila de Totales)
-          const totalRowIdx = rows.length - 1;
-          ws['!merges'] = [
+          // Regiones combinadas (Banner Superior, Fila de Totales y Pie de Direcciones)
+          const wsMerges = [
             { s: { r: 0, c: 0 }, e: { r: 0, c: 12 } },
             { s: { r: 1, c: 0 }, e: { r: 1, c: 12 } },
             { s: { r: totalRowIdx, c: 0 }, e: { r: totalRowIdx, c: 11 } }
@@ -3462,10 +3768,9 @@
             { hpt: 32 }  // Cabeceras
           ];
           for (let i = 0; i < empleados.length; i++) {
-            wsRows.push({ hpt: 23 });
+            wsRows.push({ hpt: filasConPuntoVenta[i] ? 32 : 23 });
           }
           wsRows.push({ hpt: 26 }); // Fila Total
-          ws['!rows'] = wsRows;
 
           // Aplicar estilos celda por celda en Malla Semanal
           for (let c = 0; c <= 12; c++) {
@@ -3519,6 +3824,10 @@
           const refTotVal = XLSX.utils.encode_cell({ r: totalRowIdx, c: 12 });
           if (ws[refTotVal]) ws[refTotVal].s = stFooterVal;
 
+          stylePieDireccionesSheet(ws, wsMerges, wsRows, footerMetaMain, 13);
+          ws['!merges'] = wsMerges;
+          ws['!rows'] = wsRows;
+
           if (empleados.length > 0) {
             ws['!autofilter'] = { ref: `A4:M${3 + empleados.length}` };
           }
@@ -3528,13 +3837,13 @@
             { wch: 15 }, // Cédula
             { wch: 30 }, // Empleado
             { wch: 18 }, // Área / Cargo
-            { wch: 17 }, // Lunes
-            { wch: 17 }, // Martes
-            { wch: 17 }, // Miércoles
-            { wch: 17 }, // Jueves
-            { wch: 17 }, // Viernes
-            { wch: 17 }, // Sábado
-            { wch: 18 }, // Domingo
+            { wch: 20 }, // Lunes
+            { wch: 20 }, // Martes
+            { wch: 20 }, // Miércoles
+            { wch: 20 }, // Jueves
+            { wch: 20 }, // Viernes
+            { wch: 20 }, // Sábado
+            { wch: 20 }, // Domingo
             { wch: 14 }, // Almuerzo
             { wch: 16 }  // Total Horas Semana
           ];
@@ -3543,31 +3852,35 @@
           XLSX.utils.book_append_sheet(wb, ws, 'Malla Semanal');
 
           // =========================================================================
-          // PESTAÑAS 2..8: 1 PESTAÑA SEPARADA POR CADA DÍA DE LA SEMANA (11 Columnas: A..K)
+          // PESTAÑAS 2..8: 1 PESTAÑA SEPARADA POR CADA DÍA DE LA SEMANA (12 Columnas: A..L)
           // =========================================================================
           dias.forEach((dia, dIdx) => {
             const esDomDia = (dIdx === 6);
             const rowsDia = [];
-            rowsDia.push([`SALGUEROS — HORARIO DEL DÍA: ${(dia.nombre || '').toUpperCase()} ${dia.fecha}`, '', '', '', '', '', '', '', '', '', '']);
-            rowsDia.push([`Programación Individual del Día (${dia.nombre} ${dia.fecha})   |   1 Fila por Empleado   |   Almuerzo Descontado`, '', '', '', '', '', '', '', '', '', '']);
-            rowsDia.push(['', '', '', '', '', '', '', '', '', '', '']);
+            rowsDia.push([`SALGUEROS — HORARIO DEL DÍA: ${(dia.nombre || '').toUpperCase()} ${dia.fecha}`, '', '', '', '', '', '', '', '', '', '', '']);
+            rowsDia.push([`Programación Individual del Día (${dia.nombre} ${dia.fecha})   |   1 Fila por Empleado   |   Almuerzo Descontado`, '', '', '', '', '', '', '', '', '', '', '']);
+            rowsDia.push(['', '', '', '', '', '', '', '', '', '', '', '']);
             rowsDia.push([
-              'N°', 'CÉDULA', 'NOMBRE DEL EMPLEADO', 'ÁREA / CARGO', 'FECHA', 'DÍA',
+              'N°', 'CÉDULA', 'NOMBRE DEL EMPLEADO', 'ÁREA / CARGO', 'PUNTO DE VENTA', 'FECHA', 'DÍA',
               'HORA ENTRADA', 'HORA SALIDA', 'ALMUERZO', 'HORAS NETAS DÍA', 'ESTADO DEL TURNO'
             ]);
 
             let totalMinDia = 0;
             const estadosDia = [];
+            const puntosDia = [];
 
             empleados.forEach((emp, idx) => {
               const c = getCelda(emp.idEmpleado, dia.fecha);
               const cargoStr = (emp.area || 'PLANTA').toUpperCase();
+              const pvDia = (esEmpleadoVentas(emp) && c.tipo === 'TURNO' && c.puntoVenta) ? c.puntoVenta.trim() : '--';
+              puntosDia.push(pvDia);
+
               if (c.tipo === 'DESCANSO') {
-                rowsDia.push([idx + 1, emp.cedula, emp.nombreApellido, cargoStr, dia.fecha, dia.nombre, '--', '--', '0 min', '0 hrs', 'DESCANSO']);
+                rowsDia.push([idx + 1, emp.cedula, emp.nombreApellido, cargoStr, '--', dia.fecha, dia.nombre, '--', '--', '0 min', '0 hrs', 'DESCANSO']);
                 estadosDia.push('DESCANSO');
               } else if (c.tipo === 'NOVEDAD') {
                 const novStr = c.tipoNovedad || 'NOVEDAD';
-                rowsDia.push([idx + 1, emp.cedula, emp.nombreApellido, cargoStr, dia.fecha, dia.nombre, '--', '--', '0 min', '0 hrs', novStr]);
+                rowsDia.push([idx + 1, emp.cedula, emp.nombreApellido, cargoStr, '--', dia.fecha, dia.nombre, '--', '--', '0 min', '0 hrs', novStr]);
                 estadosDia.push('NOVEDAD');
               } else {
                 const hEnt = (c.horaEntrada || '08:00').substring(0, 5);
@@ -3583,7 +3896,7 @@
                 const hrsDia = minNetos / 60.0;
                 const hrsDiaStr = hrsDia % 1 === 0 ? `${hrsDia.toFixed(0)} hrs` : `${hrsDia.toFixed(1)} hrs`;
                 rowsDia.push([
-                  idx + 1, emp.cedula, emp.nombreApellido, cargoStr, dia.fecha, dia.nombre,
+                  idx + 1, emp.cedula, emp.nombreApellido, cargoStr, pvDia, dia.fecha, dia.nombre,
                   hEnt, hSal, `${minAlm} min`, hrsDiaStr, esDomDia ? '☀️ TURNO DOMINICAL' : 'TURNO PROGRAMADO'
                 ]);
                 estadosDia.push(esDomDia ? 'TURNO_DOMINGO' : 'TURNO_NORMAL');
@@ -3594,15 +3907,17 @@
             const totalHrsDiaStr = totalHrsDia % 1 === 0 ? `${totalHrsDia.toFixed(0)} hrs` : `${totalHrsDia.toFixed(1)} hrs`;
             rowsDia.push([
               `TOTAL HORAS PROGRAMADAS DEL DÍA (${(dia.nombre || '').toUpperCase()} ${dia.fecha})`,
-              '', '', '', '', '', '', '', '', totalHrsDiaStr, 'CONFIRMADO'
+              '', '', '', '', '', '', '', '', '', totalHrsDiaStr, 'CONFIRMADO'
             ]);
+            const totDiaIdx = rowsDia.length - 1;
+
+            const footerMetaDia = appendPieDireccionesRows(rowsDia, 12);
 
             const wsDia = XLSX.utils.aoa_to_sheet(rowsDia);
-            const totDiaIdx = rowsDia.length - 1;
-            wsDia['!merges'] = [
-              { s: { r: 0, c: 0 }, e: { r: 0, c: 10 } },
-              { s: { r: 1, c: 0 }, e: { r: 1, c: 10 } },
-              { s: { r: totDiaIdx, c: 0 }, e: { r: totDiaIdx, c: 8 } }
+            const wsDiaMerges = [
+              { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
+              { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } },
+              { s: { r: totDiaIdx, c: 0 }, e: { r: totDiaIdx, c: 9 } }
             ];
 
             const wsDiaRows = [
@@ -3613,16 +3928,15 @@
             ];
             for (let i = 0; i < empleados.length; i++) wsDiaRows.push({ hpt: 22 });
             wsDiaRows.push({ hpt: 25 });
-            wsDia['!rows'] = wsDiaRows;
 
             const headerColorDia = esDomDia ? 'B45309' : '1B365D';
-            for (let c = 0; c <= 10; c++) {
+            for (let c = 0; c <= 11; c++) {
               const r0 = XLSX.utils.encode_cell({ r: 0, c });
               if (wsDia[r0]) wsDia[r0].s = stBannerTitle(headerColorDia);
               const r1 = XLSX.utils.encode_cell({ r: 1, c });
               if (wsDia[r1]) wsDia[r1].s = stBannerSub;
               const rH = XLSX.utils.encode_cell({ r: 3, c });
-              if (wsDia[rH]) wsDia[rH].s = (c === 9) ? stHeader('0F172A') : stHeader(headerColorDia);
+              if (wsDia[rH]) wsDia[rH].s = (c === 10) ? stHeader('0F172A') : stHeader(headerColorDia);
             }
 
             for (let i = 0; i < empleados.length; i++) {
@@ -3635,32 +3949,38 @@
               const c1 = XLSX.utils.encode_cell({ r: rIdx, c: 1 }); if (wsDia[c1]) wsDia[c1].s = stZebraCenter(even);
               const c2 = XLSX.utils.encode_cell({ r: rIdx, c: 2 }); if (wsDia[c2]) wsDia[c2].s = stZebraName(even);
               const c3 = XLSX.utils.encode_cell({ r: rIdx, c: 3 }); if (wsDia[c3]) wsDia[c3].s = stCargoBadge(even);
-              const c4 = XLSX.utils.encode_cell({ r: rIdx, c: 4 }); if (wsDia[c4]) wsDia[c4].s = stZebraCenter(even);
+              const c4 = XLSX.utils.encode_cell({ r: rIdx, c: 4 }); if (wsDia[c4]) wsDia[c4].s = puntosDia[i] !== '--' ? stPuntoVenta : stZebraCenter(even);
               const c5 = XLSX.utils.encode_cell({ r: rIdx, c: 5 }); if (wsDia[c5]) wsDia[c5].s = stZebraCenter(even);
-              const c6 = XLSX.utils.encode_cell({ r: rIdx, c: 6 }); if (wsDia[c6]) wsDia[c6].s = stHorario;
+              const c6 = XLSX.utils.encode_cell({ r: rIdx, c: 6 }); if (wsDia[c6]) wsDia[c6].s = stZebraCenter(even);
               const c7 = XLSX.utils.encode_cell({ r: rIdx, c: 7 }); if (wsDia[c7]) wsDia[c7].s = stHorario;
-              const c8 = XLSX.utils.encode_cell({ r: rIdx, c: 8 }); if (wsDia[c8]) wsDia[c8].s = stZebraCenter(even);
-              const c9 = XLSX.utils.encode_cell({ r: rIdx, c: 9 }); if (wsDia[c9]) wsDia[c9].s = est === 'DESCANSO' ? stDescanso : stTotalEmp;
-              const c10 = XLSX.utils.encode_cell({ r: rIdx, c: 10 }); if (wsDia[c10]) wsDia[c10].s = stHorario;
+              const c8 = XLSX.utils.encode_cell({ r: rIdx, c: 8 }); if (wsDia[c8]) wsDia[c8].s = stHorario;
+              const c9 = XLSX.utils.encode_cell({ r: rIdx, c: 9 }); if (wsDia[c9]) wsDia[c9].s = stZebraCenter(even);
+              const c10 = XLSX.utils.encode_cell({ r: rIdx, c: 10 }); if (wsDia[c10]) wsDia[c10].s = est === 'DESCANSO' ? stDescanso : stTotalEmp;
+              const c11 = XLSX.utils.encode_cell({ r: rIdx, c: 11 }); if (wsDia[c11]) wsDia[c11].s = stHorario;
             }
 
-            for (let c = 0; c <= 8; c++) {
+            for (let c = 0; c <= 9; c++) {
               const rT = XLSX.utils.encode_cell({ r: totDiaIdx, c });
               if (wsDia[rT]) wsDia[rT].s = stFooterLabel;
             }
-            const rTVal = XLSX.utils.encode_cell({ r: totDiaIdx, c: 9 });
+            const rTVal = XLSX.utils.encode_cell({ r: totDiaIdx, c: 10 });
             if (wsDia[rTVal]) wsDia[rTVal].s = stFooterVal;
-            const rTOk = XLSX.utils.encode_cell({ r: totDiaIdx, c: 10 });
+            const rTOk = XLSX.utils.encode_cell({ r: totDiaIdx, c: 11 });
             if (wsDia[rTOk]) wsDia[rTOk].s = stHeader(headerColorDia);
 
+            stylePieDireccionesSheet(wsDia, wsDiaMerges, wsDiaRows, footerMetaDia, 12);
+            wsDia['!merges'] = wsDiaMerges;
+            wsDia['!rows'] = wsDiaRows;
+
             if (empleados.length > 0) {
-              wsDia['!autofilter'] = { ref: `A4:K${3 + empleados.length}` };
+              wsDia['!autofilter'] = { ref: `A4:L${3 + empleados.length}` };
             }
             wsDia['!cols'] = [
               { wch: 6 },  // N°
               { wch: 15 }, // Cédula
               { wch: 30 }, // Empleado
               { wch: 18 }, // Área / Cargo
+              { wch: 20 }, // Punto de Venta
               { wch: 14 }, // Fecha
               { wch: 14 }, // Día
               { wch: 16 }, // Entrada
@@ -4291,6 +4611,7 @@
           const lunesFecha = diasSemanaMatriz.value[0].fecha;
           const cLunes = getCelda(empId, lunesFecha);
           if (!cLunes) return;
+          const esVentas = esEmpleadoVentasPorId(empId);
 
           const maxDia = hastaSabado ? 6 : 5;
           for (let i = 1; i < maxDia; i++) {
@@ -4304,7 +4625,11 @@
               c.minutosAlmuerzo = cLunes.minutosAlmuerzo;
               c.tipoNovedad = cLunes.tipoNovedad;
               c.modoPersonalizado = cLunes.modoPersonalizado;
+              c.puntoVenta = (esVentas && cLunes.tipo === 'TURNO') ? (cLunes.puntoVenta || '') : '';
             }
+          }
+          if (esVentas) {
+            sincronizarPuntoSemanalDesdeCeldas(empId);
           }
         };
 
@@ -5061,6 +5386,13 @@
           resultadoMatriz,
           filtroAreaMatriz,
           matrizHorarios,
+          puntoSemanalVentas,
+          PUNTOS_VENTA_ZONA_SUR,
+          PUNTOS_VENTA_ZONA_NORTE,
+          esEmpleadoVentas,
+          aplicarPuntoSemanalEmpleado,
+          sincronizarPuntoSemanalDesdeCeldas,
+          resumenPuntoSemanaEmpleado,
           diasSemanaMatriz,
           etiquetaRangoSemana,
           empleadosFiltradosMatriz,

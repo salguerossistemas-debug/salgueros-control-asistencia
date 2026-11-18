@@ -43,6 +43,13 @@ public class ProgramacionSemanal {
     @Column(name = "tipo_novedad_precargada", nullable = false)
     private TipoNovedad tipoNovedadPrecargada = TipoNovedad.NINGUNA;
 
+    /**
+     * Punto de venta asignado (uso estrictamente informativo para personal de VENTAS).
+     * No afecta cálculos de nómina ni reglas de marcación biométrica.
+     */
+    @Column(name = "punto_venta", length = 100)
+    private String puntoVenta;
+
     @Column(name = "bloqueado")
     private Boolean bloqueado = false;
 
@@ -56,6 +63,16 @@ public class ProgramacionSemanal {
                                Integer minutosAlmuerzoProgramados, Boolean horasExtrasAutorizadas,
                                TipoNovedad tipoNovedadPrecargada, Boolean bloqueado,
                                LocalDateTime fechaModificacion) {
+        this(idProgramacion, empleado, fecha, horaEntradaProgramada, horaSalidaProgramada,
+                minutosAlmuerzoProgramados, horasExtrasAutorizadas, tipoNovedadPrecargada,
+                null, bloqueado, fechaModificacion);
+    }
+
+    public ProgramacionSemanal(Long idProgramacion, Empleado empleado, LocalDate fecha,
+                               LocalTime horaEntradaProgramada, LocalTime horaSalidaProgramada,
+                               Integer minutosAlmuerzoProgramados, Boolean horasExtrasAutorizadas,
+                               TipoNovedad tipoNovedadPrecargada, String puntoVenta, Boolean bloqueado,
+                               LocalDateTime fechaModificacion) {
         this.idProgramacion = idProgramacion;
         this.empleado = empleado;
         this.fecha = fecha;
@@ -64,6 +81,7 @@ public class ProgramacionSemanal {
         this.minutosAlmuerzoProgramados = minutosAlmuerzoProgramados != null ? minutosAlmuerzoProgramados : 0;
         this.horasExtrasAutorizadas = horasExtrasAutorizadas != null ? horasExtrasAutorizadas : false;
         this.tipoNovedadPrecargada = tipoNovedadPrecargada != null ? tipoNovedadPrecargada : TipoNovedad.NINGUNA;
+        this.puntoVenta = (puntoVenta != null && !puntoVenta.isBlank()) ? puntoVenta.trim() : null;
         this.bloqueado = bloqueado != null ? bloqueado : false;
         this.fechaModificacion = fechaModificacion;
     }
@@ -115,6 +133,11 @@ public class ProgramacionSemanal {
         this.tipoNovedadPrecargada = tipoNovedadPrecargada != null ? tipoNovedadPrecargada : TipoNovedad.NINGUNA;
     }
 
+    public String getPuntoVenta() { return puntoVenta; }
+    public void setPuntoVenta(String puntoVenta) {
+        this.puntoVenta = (puntoVenta != null && !puntoVenta.isBlank()) ? puntoVenta.trim() : null;
+    }
+
     public Boolean getBloqueado() {
         return bloqueado != null ? bloqueado : false;
     }
@@ -134,6 +157,7 @@ public class ProgramacionSemanal {
         private Integer minutosAlmuerzoProgramados = 0;
         private Boolean horasExtrasAutorizadas = false;
         private TipoNovedad tipoNovedadPrecargada = TipoNovedad.NINGUNA;
+        private String puntoVenta;
         private Boolean bloqueado = false;
         private LocalDateTime fechaModificacion;
 
@@ -145,13 +169,14 @@ public class ProgramacionSemanal {
         public Builder minutosAlmuerzoProgramados(Integer minutosAlmuerzoProgramados) { this.minutosAlmuerzoProgramados = minutosAlmuerzoProgramados; return this; }
         public Builder horasExtrasAutorizadas(Boolean horasExtrasAutorizadas) { this.horasExtrasAutorizadas = horasExtrasAutorizadas; return this; }
         public Builder tipoNovedadPrecargada(TipoNovedad tipoNovedadPrecargada) { this.tipoNovedadPrecargada = tipoNovedadPrecargada; return this; }
+        public Builder puntoVenta(String puntoVenta) { this.puntoVenta = puntoVenta; return this; }
         public Builder bloqueado(Boolean bloqueado) { this.bloqueado = bloqueado; return this; }
         public Builder fechaModificacion(LocalDateTime fechaModificacion) { this.fechaModificacion = fechaModificacion; return this; }
 
         public ProgramacionSemanal build() {
             return new ProgramacionSemanal(idProgramacion, empleado, fecha, horaEntradaProgramada,
                     horaSalidaProgramada, minutosAlmuerzoProgramados, horasExtrasAutorizadas,
-                    tipoNovedadPrecargada, bloqueado, fechaModificacion);
+                    tipoNovedadPrecargada, puntoVenta, bloqueado, fechaModificacion);
         }
     }
 }

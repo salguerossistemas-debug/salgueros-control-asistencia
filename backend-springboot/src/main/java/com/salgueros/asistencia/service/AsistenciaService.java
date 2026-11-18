@@ -194,6 +194,7 @@ public class AsistenciaService {
         int turnosProtegidos = 0;
 
         for (Empleado emp : empleadosObjetivo) {
+            String puntoVentaTurno = resolverPuntoVentaInformativo(emp, novedad, request.getPuntoVenta());
             LocalDate fechaActual = fechaInicio;
             while (!fechaActual.isAfter(fechaFin)) {
                 Optional<ProgramacionSemanal> optProg = programacionRepository.findByEmpleadoAndFecha(emp, fechaActual);
@@ -213,6 +214,7 @@ public class AsistenciaService {
                         prog.setMinutosAlmuerzoProgramados(minutosAlmuerzo);
                         prog.setHorasExtrasAutorizadas(horasExtras);
                         prog.setTipoNovedadPrecargada(novedad);
+                        prog.setPuntoVenta(puntoVentaTurno);
                         prog.setBloqueado(bloqueado);
                         prog.setFechaModificacion(LocalDateTime.now());
                         programacionRepository.save(prog);
@@ -227,6 +229,7 @@ public class AsistenciaService {
                             .minutosAlmuerzoProgramados(minutosAlmuerzo)
                             .horasExtrasAutorizadas(horasExtras)
                             .tipoNovedadPrecargada(novedad)
+                            .puntoVenta(puntoVentaTurno)
                             .bloqueado(bloqueado)
                             .fechaModificacion(LocalDateTime.now())
                             .build();
@@ -299,6 +302,7 @@ public class AsistenciaService {
             map.put("minutosAlmuerzo", p.getMinutosAlmuerzoProgramados());
             map.put("horasExtras", p.getHorasExtrasAutorizadas());
             map.put("novedad", p.getTipoNovedadPrecargada().name());
+            map.put("puntoVenta", "VENTAS".equalsIgnoreCase(p.getEmpleado().getArea()) ? p.getPuntoVenta() : null);
             map.put("tieneAsistencia", tieneAsistencia);
             map.put("bloqueado", Boolean.TRUE.equals(p.getBloqueado()));
             map.put("estadoTurno", tieneAsistencia ? "EJECUTADO_INMUTABLE" : (Boolean.TRUE.equals(p.getBloqueado()) ? "CONFIRMADO_BLOQUEADO" : "PROGRAMADO_OFICIAL"));
@@ -393,6 +397,8 @@ public class AsistenciaService {
                 try { minutosAlm = Integer.parseInt(t.get("minutosAlmuerzoProgramados").toString()); } catch (Exception ignored) {}
             }
             boolean horasExtras = Boolean.parseBoolean(String.valueOf(t.getOrDefault("horasExtras", false)));
+            String puntoVentaRaw = t.get("puntoVenta") != null ? t.get("puntoVenta").toString() : null;
+            String puntoVenta = resolverPuntoVentaInformativo(emp, novedad, puntoVentaRaw);
 
             if (optProg.isPresent()) {
                 ProgramacionSemanal prog = optProg.get();
@@ -405,6 +411,7 @@ public class AsistenciaService {
                     prog.setMinutosAlmuerzoProgramados(minutosAlm);
                     prog.setHorasExtrasAutorizadas(horasExtras);
                     prog.setTipoNovedadPrecargada(novedad);
+                    prog.setPuntoVenta(puntoVenta);
                     prog.setBloqueado(bloquear);
                     prog.setFechaModificacion(LocalDateTime.now());
                     programacionRepository.save(prog);
@@ -419,6 +426,7 @@ public class AsistenciaService {
                         .minutosAlmuerzoProgramados(minutosAlm)
                         .horasExtrasAutorizadas(horasExtras)
                         .tipoNovedadPrecargada(novedad)
+                        .puntoVenta(puntoVenta)
                         .bloqueado(bloquear)
                         .fechaModificacion(LocalDateTime.now())
                         .build();
@@ -436,6 +444,25 @@ public class AsistenciaService {
                 "protegidos", protegidos,
                 "bloqueado", bloquear
         );
+    }
+
+    /**
+     * Resuelve el punto de venta asignado de forma estrictamente informativa.
+     * Solo aplica para personal del área VENTAS en días laborales (sin novedades).
+     * No interfiere en cálculos de nómina ni en reglas de marcación.
+     */
+    private String resolverPuntoVentaInformativo(Empleado emp, TipoNovedad novedad, String puntoVentaRaw) {
+        if (emp == null || !"VENTAS".equalsIgnoreCase(emp.getArea())) {
+            return null;
+        }
+        if (novedad != null && novedad != TipoNovedad.NINGUNA) {
+            return null;
+        }
+        if (puntoVentaRaw == null || puntoVentaRaw.isBlank()) {
+            return null;
+        }
+        String trimmed = puntoVentaRaw.trim();
+        return trimmed.length() > 100 ? trimmed.substring(0, 100) : trimmed;
     }
 
     public List<Map<String, Object>> listarRegistrosAsistencia(LocalDate inicio, LocalDate fin) {

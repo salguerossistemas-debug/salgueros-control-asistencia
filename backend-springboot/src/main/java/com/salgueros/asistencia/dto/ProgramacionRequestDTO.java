@@ -21,6 +21,7 @@ public class ProgramacionRequestDTO {
     private Integer minutosAlmuerzo = 0;
     private Boolean horasExtras;
     private TipoNovedad tipoNovedad;
+    private String puntoVenta;
     private Boolean bloqueado;
 
     public ProgramacionRequestDTO() {}
@@ -29,6 +30,14 @@ public class ProgramacionRequestDTO {
                                   LocalDate fechaFin, LocalTime horaEntrada, LocalTime horaSalida,
                                   Integer minutosAlmuerzo, Boolean horasExtras, TipoNovedad tipoNovedad,
                                   Boolean bloqueado) {
+        this(adminPin, idEmpleado, area, fechaInicio, fechaFin, horaEntrada, horaSalida,
+                minutosAlmuerzo, horasExtras, tipoNovedad, null, bloqueado);
+    }
+
+    public ProgramacionRequestDTO(String adminPin, Integer idEmpleado, String area, LocalDate fechaInicio,
+                                  LocalDate fechaFin, LocalTime horaEntrada, LocalTime horaSalida,
+                                  Integer minutosAlmuerzo, Boolean horasExtras, TipoNovedad tipoNovedad,
+                                  String puntoVenta, Boolean bloqueado) {
         this.adminPin = adminPin;
         this.idEmpleado = idEmpleado;
         this.area = area;
@@ -39,6 +48,7 @@ public class ProgramacionRequestDTO {
         this.minutosAlmuerzo = minutosAlmuerzo != null ? minutosAlmuerzo : 0;
         this.horasExtras = horasExtras;
         this.tipoNovedad = tipoNovedad;
+        this.puntoVenta = puntoVenta;
         this.bloqueado = bloqueado;
     }
 
@@ -80,6 +90,9 @@ public class ProgramacionRequestDTO {
     public TipoNovedad getTipoNovedad() { return tipoNovedad; }
     public void setTipoNovedad(TipoNovedad tipoNovedad) { this.tipoNovedad = tipoNovedad; }
 
+    public String getPuntoVenta() { return puntoVenta; }
+    public void setPuntoVenta(String puntoVenta) { this.puntoVenta = puntoVenta; }
+
     public Boolean getBloqueado() { return bloqueado; }
     public void setBloqueado(Boolean bloqueado) { this.bloqueado = bloqueado; }
 
@@ -94,6 +107,7 @@ public class ProgramacionRequestDTO {
         private Integer minutosAlmuerzo = 0;
         private Boolean horasExtras;
         private TipoNovedad tipoNovedad;
+        private String puntoVenta;
         private Boolean bloqueado;
 
         public Builder adminPin(String adminPin) { this.adminPin = adminPin; return this; }
@@ -106,11 +120,12 @@ public class ProgramacionRequestDTO {
         public Builder minutosAlmuerzo(Integer minutosAlmuerzo) { this.minutosAlmuerzo = minutosAlmuerzo; return this; }
         public Builder horasExtras(Boolean horasExtras) { this.horasExtras = horasExtras; return this; }
         public Builder tipoNovedad(TipoNovedad tipoNovedad) { this.tipoNovedad = tipoNovedad; return this; }
+        public Builder puntoVenta(String puntoVenta) { this.puntoVenta = puntoVenta; return this; }
         public Builder bloqueado(Boolean bloqueado) { this.bloqueado = bloqueado; return this; }
 
         public ProgramacionRequestDTO build() {
             return new ProgramacionRequestDTO(adminPin, idEmpleado, area, fechaInicio, fechaFin,
-                    horaEntrada, horaSalida, minutosAlmuerzo, horasExtras, tipoNovedad, bloqueado);
+                    horaEntrada, horaSalida, minutosAlmuerzo, horasExtras, tipoNovedad, puntoVenta, bloqueado);
         }
     }
 }
