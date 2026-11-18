@@ -66,15 +66,8 @@ CREATE TABLE registros_asistencia (
 
 
 
--- Empleados
+-- Empleados iniciales
 INSERT INTO empleados (id_empleado, cedula, nombre_apellido, estado) VALUES
 (1, '1020304050', 'Daniel Muñoz (Admin/Dev)', 'ACTIVO'),
 (2, '9876543210', 'Carlos Gómez (Cajero POS 1)', 'ACTIVO'),
 (3, '1122334455', 'Laura Restrepo (Ventas POS 2)', 'ACTIVO');
-
--- Programación para la fecha actual (CURDATE()) ejemplo 
--- Turno Daniel: 08:00 AM (Con almuerzo 60 min)
-INSERT INTO programacion_semanal (id_empleado, fecha, hora_entrada_programada, minutos_almuerzo_programados, horas_extras_autorizadas, tipo_novedad_precargada) VALUES
-(1, CURDATE(), '08:00:00', 60, TRUE, 'NINGUNA'),
-(2, CURDATE(), '07:00:00', 0, FALSE, 'NINGUNA'),
-(3, CURDATE(), '09:00:00', 60, FALSE, 'NINGUNA');

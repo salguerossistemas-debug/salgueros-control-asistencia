@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Salgueros — Sistema POS de Asistencia Biométrica</title>
+  <title>Salgueros — Sistema POS de Asistencia de Entrada</title>
   <link rel="icon" type="image/x-icon" href="./assets/logo.ico">
   <!-- Tailwind CSS (Compilado para Producción) -->
   <link rel="stylesheet" href="./assets/output.css">
@@ -363,7 +363,7 @@
 
                   <div>
                     <label class="block text-[11px] font-semibold text-slate-400 mb-1">PIN del Administrador:</label>
-                    <input v-model="nuevoEmpPin" type="password" placeholder="Ingresa tu PIN (salgueros2026)"
+                    <input v-model="nuevoEmpPin" type="password" placeholder="Ingresa tu PIN"
                            class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-white">
                   </div>
 
@@ -1366,7 +1366,7 @@
 
           <div>
             <label class="block text-xs font-bold text-slate-300 mb-1">2. PIN de Seguridad de Administrador:</label>
-            <input v-model="pinEliminarAdmin" type="password" placeholder="Ingresa PIN de Admin (ej. 2586)"
+            <input v-model="pinEliminarAdmin" type="password" placeholder="Ingresa PIN de Administrador"
                    class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-white font-mono focus:border-rose-500">
           </div>
         </div>
@@ -1420,10 +1420,10 @@
           Usa este formulario para registrar o ajustar asistencias cuando no hubo internet o energía, o para modificar horas reales de cualquier fecha pasada.
         </p>
 
-        <!-- PIN MAESTRO 2586 O ADMIN -->
+        <!-- PIN DE SEGURIDAD (CONTINGENCIA O ADMIN) -->
         <div>
           <label class="block text-xs font-bold text-slate-300 mb-1">PIN de Seguridad (Contingencia o Admin):</label>
-          <input v-model="formContingencia.pin" type="password" placeholder="Ingresa PIN (2586)"
+          <input v-model="formContingencia.pin" type="password" placeholder="Ingresa PIN de Seguridad"
                  class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-center tracking-widest text-lg font-mono focus:border-[#BB2528] focus:outline-none">
         </div>
 
@@ -1565,6 +1565,26 @@
           console.warn('Error al parsear JSON seguro de storage (' + key + '):', e);
           return defaultVal;
         }
+      }
+    };
+
+    // Seguridad Criptográfica SHA-256 para GitHub Pages Público (Protección de credenciales)
+    const HASH_ADMIN_VALIDOS = [
+      'e93a940c43f1c8f27e9d111edae8d90143e04acfbf8a3abba81ca7248684cb0d',
+      '77d3797b2a6af1b456b60858b0de7d10ad2b57476c3c6f9fd28727cc0f429901'
+    ];
+    const HASH_CONTINGENCIA = 'cfb05fff77b9b26d027b12c345d05bd1d453619318c52e827458b865860f6a85';
+
+    const calcularHashSHA256 = async (texto) => {
+      if (!texto) return '';
+      try {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(String(texto).trim());
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      } catch (e) {
+        return '';
       }
     };
 
@@ -2616,8 +2636,9 @@
           const pinIngresado = adminPinInput.value.trim();
           adminPinInput.value = ''; // Borrado de memoria inmediato del campo visual
 
-          // BLOQUEO ESTRICTO: salgueros2026. o salgueros2026 es aceptado
-          if (pinIngresado !== 'salgueros2026.' && pinIngresado !== 'salgueros2026') {
+          // Validación por hash criptográfico SHA-256 (sin exponer claves en código público)
+          const pinHash = await calcularHashSHA256(pinIngresado);
+          if (!HASH_ADMIN_VALIDOS.includes(pinHash)) {
             errorPin.value = 'Acceso Denegado: PIN de Administrador incorrecto.';
             reproducirSonido('error');
             return;
@@ -4164,8 +4185,10 @@
             return;
           }
 
-          // BLOQUEO ESTRICTO: salgueros2026. o salgueros2026 está autorizado
-          if (pin !== 'salgueros2026.' && pin !== 'salgueros2026' && (!adminSessionPin.value || (pin !== adminSessionPin.value && pin !== adminSessionPin.value + '.'))) {
+          // Validación por hash criptográfico SHA-256 (sin exponer claves en código público)
+          const pinHash = await calcularHashSHA256(pin);
+          const adminSessionHash = adminSessionPin.value ? await calcularHashSHA256(adminSessionPin.value) : '';
+          if (!HASH_ADMIN_VALIDOS.includes(pinHash) && (!adminSessionHash || pinHash !== adminSessionHash)) {
             errorPinDesbloqueo.value = '❌ PIN incorrecto. No tienes autorización para alterar turnos.';
             reproducirSonido('error');
             return;
@@ -4793,7 +4816,7 @@
             return;
           }
           if (!pinEliminarAdmin.value) {
-            mensajeEliminarModal.value = { exito: false, texto: 'Ingresa el PIN de Administrador (salgueros2026).' };
+            mensajeEliminarModal.value = { exito: false, texto: 'Ingresa el PIN de Administrador.' };
             return;
           }
 
@@ -4841,8 +4864,10 @@
 
         const enviarContingencia = async () => {
           const pinIng = (formContingencia.pin || '').trim();
-          if (pinIng !== '2586' && pinIng !== 'salgueros2026' && pinIng !== 'salgueros2026.') {
-            mensajeContingencia.value = { exito: false, texto: '⛔ PIN de seguridad inválido. Usa 2586 o el PIN de Administrador.' };
+          // Validación por hash criptográfico SHA-256 (sin exponer claves en código público)
+          const pinHash = await calcularHashSHA256(pinIng);
+          if (pinHash !== HASH_CONTINGENCIA && !HASH_ADMIN_VALIDOS.includes(pinHash)) {
+            mensajeContingencia.value = { exito: false, texto: '⛔ PIN de seguridad inválido. Requiere autorización.' };
             reproducirSonido('error');
             return;
           }

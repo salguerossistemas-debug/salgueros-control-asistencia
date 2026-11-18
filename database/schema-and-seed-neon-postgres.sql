@@ -77,9 +77,3 @@ INSERT INTO empleados (id_empleado, cedula, nombre_apellido, estado) VALUES
 
 -- Ajustar el contador de IDs para que el siguiente empleado sea el 4
 SELECT setval('empleados_id_empleado_seq', (SELECT MAX(id_empleado) FROM empleados));
-
--- 8. Programación inicial (Fecha actual)
-INSERT INTO programacion_semanal (id_empleado, fecha, hora_entrada_programada, minutos_almuerzo_programados, horas_extras_autorizadas, tipo_novedad_precargada) VALUES
-(1, CURRENT_DATE, '08:00:00', 60, TRUE, 'NINGUNA'),
-(2, CURRENT_DATE, '07:00:00', 0, FALSE, 'NINGUNA'),
-(3, CURRENT_DATE, '09:00:00', 60, FALSE, 'NINGUNA');
