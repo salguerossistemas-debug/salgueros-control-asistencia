@@ -1625,46 +1625,76 @@
               </button>
             </div>
 
-            <div class="overflow-x-auto">
-              <table class="w-full text-left text-xs">
-                <thead class="bg-slate-950 text-slate-400 uppercase text-[10px] border-b border-slate-800">
-                  <tr>
-                    <th class="py-2.5 px-3">N°</th>
-                    <th class="py-2.5 px-3">Tipo</th>
-                    <th class="py-2.5 px-3">Sede Destino</th>
-                    <th class="py-2.5 px-3">Fecha</th>
-                    <th class="py-2.5 px-3">Despachado</th>
-                    <th class="py-2.5 px-3">Estado</th>
-                    <th class="py-2.5 px-3">Recibido Por</th>
-                    <th class="py-2.5 px-3 text-center">Tirilla</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-800/60 font-medium">
-                  <tr v-for="rem in historialRemisiones" :key="rem.id" class="hover:bg-slate-800/40">
-                    <td class="py-2.5 px-3 font-mono font-bold text-rose-400">#{{ String(rem.numeroRemision).padStart(4, '0') }}</td>
-                    <td class="py-2.5 px-3 text-slate-300">{{ rem.tipo }}</td>
-                    <td class="py-2.5 px-3 font-bold text-slate-200">{{ rem.puntoVenta }}</td>
-                    <td class="py-2.5 px-3 text-slate-400">{{ rem.fecha }}</td>
-                    <td class="py-2.5 px-3 text-slate-300">{{ rem.despachadoPor }}</td>
-                    <td class="py-2.5 px-3">
-                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold"
-                            :class="rem.estado === 'RECIBIDA' ? 'bg-emerald-950 text-emerald-400 border border-emerald-600/50' : 'bg-amber-950 text-amber-400 border border-amber-600/50'">
-                        {{ rem.estado }}
-                      </span>
-                    </td>
-                    <td class="py-2.5 px-3 text-slate-300">{{ rem.recibidoPor || '—' }}</td>
-                    <td class="py-2.5 px-3 text-center">
-                      <button type="button" @click="descargarTirillaPng(rem)" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-lg text-[11px] font-bold transition border border-cyan-800/50 flex items-center gap-1 mx-auto">
-                        📥 PNG
-                      </button>
-                    </td>
-                  </tr>
-                  <tr v-if="historialRemisiones.length === 0">
-                    <td colspan="8" class="p-6 text-center text-slate-500">No hay remisiones despachadas aún.</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <div v-if="historialPorPuntoVenta.length === 0" class="p-6 text-center text-slate-500 text-xs">
+  No hay remisiones despachadas aún.
+</div>
+
+<div v-else class="space-y-3">
+  <div v-for="grupo in historialPorPuntoVenta" :key="grupo.sede"
+       class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden">
+
+    <!-- Cabecera del Punto de Venta con su contador -->
+    <button type="button" @click="toggleSedeHistorial(grupo.sede)"
+            class="w-full p-3 flex flex-wrap items-center justify-between gap-2 text-left hover:bg-slate-800 transition">
+      <div class="flex items-center gap-3">
+        <span class="text-xs text-slate-400">
+          {{ sedesAbiertas[grupo.sede] ? '▼' : '▶' }}
+        </span>
+        <span class="text-sm font-bold text-slate-100">{{ grupo.sede }}</span>
+        <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-900 border border-slate-800 text-slate-300">
+          {{ grupo.remisiones.length }} {{ grupo.remisiones.length === 1 ? 'remisión' : 'remisiones' }}
+        </span>
+      </div>
+
+      <div class="flex items-center gap-2 text-xs font-bold">
+        <span class="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400">
+          {{ grupo.recibidas }} recibidas
+        </span>
+        <span v-if="grupo.pendientes > 0" class="px-2 py-0.5 rounded-full bg-amber-950 text-amber-400">
+          {{ grupo.pendientes }} pendientes
+        </span>
+      </div>
+    </button>
+
+    <!-- Lista de remisiones de ese Punto de Venta -->
+    <div v-if="sedesAbiertas[grupo.sede]" class="overflow-x-auto border-t border-slate-800">
+      <table class="w-full text-left text-xs">
+        <thead class="bg-slate-900 text-slate-400 uppercase border-b border-slate-800">
+          <tr>
+            <th class="py-2.5 px-3">N°</th>
+            <th class="py-2.5 px-3">Tipo</th>
+            <th class="py-2.5 px-3">Fecha</th>
+            <th class="py-2.5 px-3">Despachado</th>
+            <th class="py-2.5 px-3">Estado</th>
+            <th class="py-2.5 px-3">Recibido Por</th>
+            <th class="py-2.5 px-3 text-center">Tirilla</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800 font-medium">
+          <tr v-for="rem in grupo.remisiones" :key="rem.id" class="hover:bg-slate-800/40">
+            <td class="py-2.5 px-3 font-mono font-bold text-rose-400">#{{ String(rem.numeroRemision).padStart(4, '0') }}</td>
+            <td class="py-2.5 px-3 text-slate-300">{{ rem.tipo }}</td>
+            <td class="py-2.5 px-3 text-slate-400">{{ rem.fecha }}</td>
+            <td class="py-2.5 px-3 text-slate-300">{{ rem.despachadoPor }}</td>
+            <td class="py-2.5 px-3">
+              <span class="px-2 py-0.5 rounded-full text-xs font-bold"
+                    :class="rem.estado === 'RECIBIDA' ? 'bg-emerald-950 text-emerald-400 border border-emerald-600/50' : 'bg-amber-950 text-amber-400 border border-amber-600/50'">
+                {{ rem.estado }}
+              </span>
+            </td>
+            <td class="py-2.5 px-3 text-slate-300">{{ rem.recibidoPor || '—' }}</td>
+            <td class="py-2.5 px-3 text-center">
+              <button type="button" @click="descargarTirillaPng(rem)" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold transition border border-slate-700 flex items-center gap-1 mx-auto">
+                📥 PNG
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
           </div>
 
         </div>
@@ -6049,6 +6079,40 @@
           historialRemisiones.value = Array.from(mapa.values()).sort((a,b) => (Number(b.numeroRemision)||0) - (Number(a.numeroRemision)||0));
         };
 
+                  // Controla qué punto de venta está desplegado en el historial
+          const sedesAbiertas = ref({});
+
+          const toggleSedeHistorial = (sede) => {
+            sedesAbiertas.value[sede] = !sedesAbiertas.value[sede];
+          };
+
+          // Agrupa historialRemisiones por punto de venta y cuenta cuántas hay en cada uno
+          const historialPorPuntoVenta = computed(() => {
+            const grupos = {};
+
+            historialRemisiones.value.forEach((rem) => {
+              const sede = (rem.puntoVenta || 'Sin sede').trim();
+
+              if (!grupos[sede]) {
+                grupos[sede] = {
+                  sede,
+                  remisiones: [],
+                  recibidas: 0,
+                  pendientes: 0
+                };
+              }
+
+              grupos[sede].remisiones.push(rem);
+              if (rem.estado === 'RECIBIDA') {
+                grupos[sede].recibidas++;
+              } else {
+                grupos[sede].pendientes++;
+              }
+            });
+
+            // Ordena los puntos de venta alfabéticamente (Chico, Plaza 1, Salitre, etc.)
+            return Object.values(grupos).sort((a, b) => a.sede.localeCompare(b.sede));
+          });
         const cargarPendientesPos = async () => {
           let rems = [];
           try {
@@ -6405,6 +6469,10 @@
           procesandoDespacho,
           mensajeRemisionPlanta,
           historialRemisiones,
+          historialRemisiones,
+          sedesAbiertas,
+          toggleSedeHistorial,
+          historialPorPuntoVenta,
           cargarDatosPlanta,
           agregarProductoAdicionalPlanta,
           quitarProductoPlanta,
