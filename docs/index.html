@@ -128,7 +128,7 @@
       <div class="lg:col-span-5 flex flex-col gap-4">
         
         <!-- Visor de Cámara con Canvas (Cuadrado perfecto 380px x 380px) -->
-        <div class="relative bg-black rounded-2xl overflow-hidden shadow-2xl border-2 border-slate-800 flex items-center justify-center w-[380px] h-[380px] max-w-full mx-auto">
+        <div class="relative bg-blue rounded-2xl overflow-hidden shadow-2xl border-2 border-slate-800 flex items-center justify-center w-[380px] h-[380px] max-w-full mx-auto">
           <video ref="videoEl" autoplay muted playsinline class="w-full h-full object-cover"></video>
           <canvas ref="canvasEl" class="canvas-overlay"></canvas>
 
@@ -311,46 +311,7 @@
                             class="text-xs font-bold text-indigo-400 hover:text-indigo-300 transition flex items-center gap-1">
                       <span>{{ mostrarFormNuevoEmpleado ? '✖ Cancelar' : '➕ Nuevo Personal' }}</span>
                     </button>
-                    <span class="text-slate-600">|</span>
-                    <button type="button" @click="toggleFormEliminarEmpleado"
-                            class="text-xs font-bold text-rose-400 hover:text-rose-300 transition flex items-center gap-1">
-                      <span>{{ mostrarFormEliminarEmpleado ? '✖ Cancelar' : '🗑️ Retirar Empleado' }}</span>
-                    </button>
                   </div>
-                </div>
-
-                <!-- Formulario Desplegable para Retirar Empleado con PIN -->
-                <div v-if="mostrarFormEliminarEmpleado" class="p-3 mb-3 rounded-xl bg-slate-950 border border-rose-500/50 space-y-2.5 animate-fade-in shadow-xl">
-                  <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                    <span class="text-xs font-bold text-rose-300 flex items-center gap-1">
-                      <span>🗑️ Retirar Personal de la Empresa</span>
-                    </span>
-                    <span class="text-[10px] text-slate-400 font-mono">PIN requerido</span>
-                  </div>
-
-                  <div>
-                    <label class="block text-[11px] font-semibold text-slate-400 mb-1">Seleccionar Empleado a Retirar:</label>
-                    <select v-model="idEmpleadoEliminar" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-white font-bold">
-                      <option :value="null">-- Selecciona un empleado --</option>
-                      <option v-for="emp in listaEmpleados" :key="emp.idEmpleado" :value="emp.idEmpleado">
-                        [{{ emp.area || 'PLANTA' }}] {{ emp.nombreApellido }} (C.C. {{ emp.cedula }})
-                      </option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label class="block text-[11px] font-semibold text-slate-400 mb-1">PIN del Administrador:</label>
-                    <input v-model="eliminarEmpPin" type="password" placeholder="Ingresa tu PIN de Admin"
-                           class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-white">
-                  </div>
-
-                  <button type="button" @click="eliminarEmpleadoSubmit" :disabled="procesandoEliminarEmp || !idEmpleadoEliminar"
-                          class="w-full py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow">
-                    <span>{{ procesandoEliminarEmp ? 'Procesando retiro...' : '⚠️ Confirmar Retiro y Eliminar Rostro' }}</span>
-                  </button>
-
-                  <p v-if="errorEliminarEmp" class="text-[11px] text-rose-400 font-semibold">{{ errorEliminarEmp }}</p>
-                  <p v-if="exitoEliminarEmp" class="text-[11px] text-emerald-400 font-semibold">{{ exitoEliminarEmp }}</p>
                 </div>
 
                 <!-- Formulario Desplegable para Registrar Nuevo Empleado con PIN -->
