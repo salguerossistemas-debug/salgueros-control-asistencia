@@ -388,6 +388,7 @@
                       <option value="VENTAS">🛒 VENTAS</option>
                       <option value="TRANSPORTADORES">🚚 TRANSPORTADORES</option>
                       <option value="ADMINISTRADORES">💼 ADMINISTRADORES</option>
+                      <option value="OFICINA">🏢 OFICINA</option>
                     </select>
                   </div>
 
@@ -1032,7 +1033,7 @@
                         :class="filtroAreaMatriz === 'TODAS' ? 'bg-[#BB2528] border-[#BB2528] text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'">
                   Todas ({{ listaEmpleados.length }})
                 </button>
-                <button v-for="area in ['PLANTA', 'VENTAS', 'TRANSPORTADORES', 'ADMINISTRADORES']" :key="'filtro-' + area"
+                <button v-for="area in ['PLANTA', 'VENTAS', 'OFICINA', 'ADMINISTRADORES', 'TRANSPORTADORES']" :key="'filtro-' + area"
                         type="button" @click="filtroAreaMatriz = area"
                         class="px-2.5 py-1 rounded-lg font-bold transition border text-[11px]"
                         :class="filtroAreaMatriz === area ? 'bg-[#BB2528] border-[#BB2528] text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'">
