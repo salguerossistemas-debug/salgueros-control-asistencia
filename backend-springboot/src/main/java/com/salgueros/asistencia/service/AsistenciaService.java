@@ -149,6 +149,41 @@ public class AsistenciaService {
     }
 
     @Transactional
+    public Map<String, Object> eliminarEmpleado(Integer idEmpleado, String adminPin) {
+        validarPinAdmin(adminPin);
+
+        Empleado emp = empleadoRepository.findById(idEmpleado)
+                .orElseThrow(() -> new IllegalArgumentException("Empleado no encontrado con ID: " + idEmpleado));
+
+        String nombre = emp.getNombreApellido();
+        String cedula = emp.getCedula();
+
+        // 1. Eliminar sus vectores biométricos faciales para deshabilitar su acceso por cámara
+        List<VectorFacial> vectores = vectorRepository.findByEmpleado(emp);
+        if (vectores != null && !vectores.isEmpty()) {
+            vectorRepository.deleteAll(vectores);
+        }
+
+        // 2. Si no tiene turnos ni registros de asistencia, eliminarlo por completo de la BD
+        long totalTurnos = programacionRepository.countByEmpleado(emp);
+        if (totalTurnos == 0) {
+            empleadoRepository.delete(emp);
+            return Map.of(
+                    "exito", true,
+                    "mensaje", "Empleado " + nombre + " (C.C. " + cedula + ") eliminado definitivamente del sistema."
+            );
+        } else {
+            // Si tiene asistencias pasadas, darlo de baja marcándolo como INACTIVO
+            emp.setEstado(EstadoEmpleado.INACTIVO);
+            empleadoRepository.save(emp);
+            return Map.of(
+                    "exito", true,
+                    "mensaje", "Empleado " + nombre + " retirado y desactivado. Su historial de turnos fue preservado pero su rostro fue eliminado."
+            );
+        }
+    }
+
+    @Transactional
     public Map<String, Object> programarTurnos(ProgramacionRequestDTO request) {
         validarPinAdmin(request.getAdminPin());
 

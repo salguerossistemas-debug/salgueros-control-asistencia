@@ -17,6 +17,7 @@ import java.util.Optional;
 public interface ProgramacionSemanalRepository extends JpaRepository<ProgramacionSemanal, Long> {
     Optional<ProgramacionSemanal> findByEmpleadoAndFecha(Empleado empleado, LocalDate fecha);
     List<ProgramacionSemanal> findByFechaBetween(LocalDate inicio, LocalDate fin);
+    long countByEmpleado(Empleado empleado);
 
     @Query("SELECT DISTINCT p FROM ProgramacionSemanal p " +
            "JOIN FETCH p.empleado e " +

@@ -53,6 +53,34 @@ public class AsistenciaController {
         }
     }
 
+    @PostMapping("/empleados/eliminar")
+    public ResponseEntity<?> eliminarEmpleado(
+            @RequestBody Map<String, Object> body,
+            HttpServletRequest httpRequest) {
+        String ipCliente = obtenerIpCliente(httpRequest);
+        if (!esIpAutorizada(ipCliente)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).body(Map.of(
+                "exito", false, 
+                "mensaje", "Acceso denegado: Su dispositivo (IP: " + ipCliente + ") no está en la red de un punto autorizado."
+            ));
+        }
+
+        try {
+            Integer idEmpleado = body.get("idEmpleado") instanceof Number 
+                    ? ((Number) body.get("idEmpleado")).intValue() 
+                    : Integer.parseInt(body.get("idEmpleado").toString());
+            String adminPin = (String) body.get("adminPin");
+            Map<String, Object> res = asistenciaService.eliminarEmpleado(idEmpleado, adminPin);
+            return ResponseEntity.ok(res);
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(Map.of("exito", false, "mensaje", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("exito", false, "mensaje", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("exito", false, "mensaje", e.getMessage()));
+        }
+    }
+
     @PostMapping("/admin/validar-pin")
     public ResponseEntity<?> validarPin(@RequestBody Map<String, String> body) {
         String pin = body.get("pin");
