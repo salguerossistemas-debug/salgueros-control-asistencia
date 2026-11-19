@@ -128,7 +128,7 @@
       <div class="lg:col-span-5 flex flex-col gap-4">
         
         <!-- Visor de Cámara con Canvas (Cuadrado perfecto 380px x 380px) -->
-        <div style="box-shadow: 0 20px 50px rgba(194, 109, 109, 0.9);" class="relative bg-black rounded-2xl overflow-hidden border-2 border-slate-800 flex items-center justify-center w-[380px] h-[380px] max-w-full mx-auto">
+        <div class="relative bg-black rounded-2xl overflow-hidden shadow-2xl border-2 border-slate-800 flex items-center justify-center w-[380px] h-[380px] max-w-full mx-auto">
           <video ref="videoEl" autoplay muted playsinline class="w-full h-full object-cover"></video>
           <canvas ref="canvasEl" class="canvas-overlay"></canvas>
 
@@ -388,7 +388,6 @@
                       <option value="VENTAS">🛒 VENTAS</option>
                       <option value="TRANSPORTADORES">🚚 TRANSPORTADORES</option>
                       <option value="ADMINISTRADORES">💼 ADMINISTRADORES</option>
-                      <option value="OFICINA">🏢 OFICINA</option>
                     </select>
                   </div>
 
@@ -1033,7 +1032,7 @@
                         :class="filtroAreaMatriz === 'TODAS' ? 'bg-[#BB2528] border-[#BB2528] text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'">
                   Todas ({{ listaEmpleados.length }})
                 </button>
-                <button v-for="area in ['PLANTA', 'VENTAS', 'OFICINA', 'ADMINISTRADORES', 'TRANSPORTADORES']" :key="'filtro-' + area"
+                <button v-for="area in ['PLANTA', 'VENTAS', 'TRANSPORTADORES', 'ADMINISTRADORES']" :key="'filtro-' + area"
                         type="button" @click="filtroAreaMatriz = area"
                         class="px-2.5 py-1 rounded-lg font-bold transition border text-[11px]"
                         :class="filtroAreaMatriz === area ? 'bg-[#BB2528] border-[#BB2528] text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'">
