@@ -48,6 +48,9 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         // 4. Agregar columna informativa 'punto_venta' si no existe (solo informativo para malla de ventas)
         ejecutarSqlSeguro("ALTER TABLE programacion_semanal ADD COLUMN IF NOT EXISTS punto_venta VARCHAR(100) NULL");
 
+        // 5. Índice compuesto único para remisiones por tipo y número
+        ejecutarSqlSeguro("CREATE UNIQUE INDEX IF NOT EXISTS uq_tipo_numero ON remisiones(tipo, numero_remision)");
+
         // 5. Normalizar registros existentes con la regla de llegada temprana y alivio de 8 minutos
         normalizarRegistrosAsistenciaConAlivio();
 

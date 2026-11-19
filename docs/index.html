@@ -16,6 +16,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
   <!-- SheetJS + Estilos (xlsx-js-style para tablas Excel con colores, bordes y diseño corporativo) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js" onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';document.head.appendChild(s);"></script>
+  <!-- html2canvas (Generador de imagen PNG para Remisiones) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
     [v-cloak] {
       display: none !important;
@@ -100,6 +102,14 @@
                 :class="modoActivo === 'enrolar' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/40 ring-2 ring-indigo-400' : 'bg-slate-900/90 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-700'">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
           <span>2. Enrolar Rostro</span>
+        </button>
+
+        <!-- Pestaña 3: Remisiones y Despachos -->
+        <button @click="cambiarPestaña('remisiones')" 
+                class="px-5 py-2.5 font-bold text-sm rounded-xl transition flex items-center gap-2 shadow-sm"
+                :class="modoActivo === 'remisiones' ? 'bg-cyan-600 text-white shadow-md shadow-cyan-900/40 ring-2 ring-cyan-400' : 'bg-slate-900/90 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-700'">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <span>3. Remisiones / Despachos</span>
         </button>
 
         <button @click="cambiarPestaña('turnos')" 
@@ -1387,6 +1397,545 @@
 
     </div>
 
+    <!-- ====== CONTENEDOR 4: REMISIONES Y DESPACHOS (PLANTA & POS) =========== -->
+    <div v-cloak v-show="modoActivo === 'remisiones'" class="mt-6 space-y-6">
+
+      <!-- Barra de Control Superior: Sub-Modos y Tipos de Remisión -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-wrap items-center justify-between gap-4">
+        
+        <!-- Selector de Rol (Planta vs POS) -->
+        <div class="flex items-center bg-slate-950 p-1.5 rounded-xl border border-slate-800 gap-1">
+          <button type="button" @click="subModoRemision = 'planta'"
+                  class="px-4 py-2 rounded-lg text-xs font-black transition flex items-center gap-2"
+                  :class="subModoRemision === 'planta' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-950/60' : 'text-slate-400 hover:text-slate-200'">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+            🏭 Planta (Despachar)
+          </button>
+          <button type="button" @click="subModoRemision = 'pos'"
+                  class="px-4 py-2 rounded-lg text-xs font-black transition flex items-center gap-2"
+                  :class="subModoRemision === 'pos' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-950/60' : 'text-slate-400 hover:text-slate-200'">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            🏪 Punto de Venta (Recepción POS)
+          </button>
+        </div>
+
+        <!-- Selector de Talonario: Insumos vs Comida -->
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold text-slate-400">Talonario:</span>
+          <div class="flex items-center bg-slate-950 p-1.5 rounded-xl border border-slate-800 gap-1">
+            <button type="button" @click="tipoRemisionActivo = 'INSUMOS'"
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5"
+                    :class="tipoRemisionActivo === 'INSUMOS' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-slate-200'">
+              📦 Insumos y Aseo
+            </button>
+            <button type="button" @click="tipoRemisionActivo = 'COMIDA'"
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5"
+                    :class="tipoRemisionActivo === 'COMIDA' ? 'bg-rose-600 text-white' : 'text-slate-400 hover:text-slate-200'">
+              🥐 Comida y Alimentos
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================= VISTA 1: PLANTA (CREAR Y DESPACHAR) ================= -->
+      <div v-if="subModoRemision === 'planta'" class="space-y-6">
+
+        <!-- Pantalla de Bloqueo Antifraude de Planta -->
+        <div v-if="plantaBloqueada" class="max-w-md mx-auto bg-slate-900 p-6 md:p-8 rounded-2xl border-2 border-rose-500 shadow-2xl text-center space-y-4">
+          <div class="w-16 h-16 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto text-3xl font-black">
+            🔒
+          </div>
+          <div>
+            <h3 class="text-base font-black text-white">Módulo de Planta Bloqueado</h3>
+            <p class="text-xs text-slate-400 mt-1">Por seguridad antifraude, ingresa tu clave de Planta para autorizar un nuevo despacho.</p>
+          </div>
+          <div class="space-y-3">
+            <input type="password" v-model="pinDesbloqueoPlanta" @keyup.enter="desbloquearPlanta" placeholder="Clave de Planta..."
+                   class="w-full bg-slate-950 border border-rose-500/80 rounded-xl p-3 text-center text-sm font-mono tracking-widest text-white focus:outline-none focus:border-rose-400 font-bold">
+            <p v-if="errorPinPlanta" class="text-xs text-rose-400 font-semibold">{{ errorPinPlanta }}</p>
+            <button type="button" @click="desbloquearPlanta"
+                    class="w-full py-3 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-black transition shadow-lg shadow-rose-950/60 active:scale-95">
+              🔓 Desbloquear Módulo Planta
+            </button>
+          </div>
+        </div>
+
+        <div v-else class="space-y-6">
+
+          <!-- Tarjeta de Datos de Cabecera de la Remisión -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+            <div class="flex flex-wrap items-center justify-between border-b border-slate-800 pb-4 gap-4">
+              <div>
+                <h2 class="text-lg font-black text-slate-100 flex items-center gap-2">
+                  <span>Nueva Remisión de {{ tipoRemisionActivo === 'INSUMOS' ? 'Insumos y Aseo' : 'Comida y Alimentos' }}</span>
+                </h2>
+                <p class="text-xs text-slate-400 mt-0.5">Ingresa las cantidades y medidas a enviar. Los campos vacíos no se incluirán.</p>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Consecutivo:</span>
+                <span class="px-4 py-1.5 rounded-xl bg-rose-950/80 border-2 border-rose-500 text-rose-300 font-mono text-xl font-black shadow-lg shadow-rose-950/50">
+                  #{{ siguienteConsecutivo }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Campos de Cabecera -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">Punto de Venta Destino:</label>
+                <select v-model="sedeDestinoRemision" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 font-medium">
+                  <option value="Plaza 1">Plaza 1</option>
+                  <option value="Plaza 2">Plaza 2</option>
+                  <option value="Sede Principal">Sede Principal</option>
+                  <option value="Salitre">Salitre</option>
+                  <option value="Suba">Suba</option>
+                  <option value="Chico">Chicó</option>
+                  <option value="Planta Central">Planta Central</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">Ciudad:</label>
+                <input type="text" value="BOGOTÁ D.C." disabled class="w-full bg-slate-950/60 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-400 font-medium">
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">Fecha de Despacho:</label>
+                <input type="date" v-model="fechaDespachoRemision" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 font-medium">
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">Despachado por (Planta):</label>
+                <input type="text" v-model="despachadoPorRemision" placeholder="Ej: DANIEL" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 font-bold">
+              </div>
+            </div>
+
+            <!-- PIN de Seguridad Exclusivo de Planta -->
+            <div class="pt-2 flex flex-wrap items-center justify-between bg-slate-950/70 p-3 rounded-xl border border-rose-800/60 gap-3">
+              <div class="flex items-center gap-2 text-xs text-rose-200">
+                <span class="font-bold">🔐 Clave Exclusiva de Planta (Antifraude):</span>
+                <input type="password" v-model="pinPlantaInput" placeholder="Clave de Planta" class="bg-slate-900 border border-rose-500 rounded-lg px-3 py-1.5 text-xs text-rose-200 font-mono w-40 focus:border-rose-400 focus:outline-none font-bold">
+              </div>
+              <span class="text-[11px] text-slate-400">Al despachar, la pantalla se bloqueará automáticamente y las cantidades quedarán selladas.</span>
+            </div>
+
+          </div>
+
+          <!-- Tabla de Productos a Enviar -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            <div class="p-4 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Lista de Productos del Despacho</span>
+                <span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-cyan-400 font-mono">
+                  {{ itemsRemisionPlanta.filter(i => i.cantidad && i.cantidad.trim() !== '').length }} seleccionados
+                </span>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto max-h-[550px] overflow-y-auto">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-950 text-slate-400 uppercase font-black tracking-wider text-[11px] sticky top-0 z-10 border-b border-slate-800">
+                  <tr>
+                    <th class="py-3 px-4 w-12 text-center">#</th>
+                    <th class="py-3 px-4">Producto</th>
+                    <th class="py-3 px-4 w-44">Unidad / Medida</th>
+                    <th class="py-3 px-4 w-44">Cantidad a Enviar</th>
+                    <th class="py-3 px-4 w-16 text-center">Acción</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 font-medium">
+                  <tr v-for="(item, idx) in itemsRemisionPlanta" :key="idx" 
+                      class="hover:bg-slate-800/40 transition"
+                      :class="item.cantidad && item.cantidad.trim() !== '' ? 'bg-cyan-950/20' : ''">
+                    
+                    <td class="py-2.5 px-4 text-center text-slate-500 font-mono text-[11px]">
+                      {{ idx + 1 }}
+                    </td>
+
+                    <td class="py-2.5 px-4 text-slate-200 font-bold flex items-center gap-2">
+                      <span>{{ item.nombreProducto }}</span>
+                      <span v-if="item.esAdicional" class="text-[9px] px-1.5 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-700/50">
+                        Adicional
+                      </span>
+                    </td>
+
+                    <td class="py-2.5 px-4">
+                      <select v-model="item.unidadMedida" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:border-cyan-500 focus:outline-none">
+                        <option value="Unidades">Unidades</option>
+                        <option value="Cajas">Cajas</option>
+                        <option value="Paquetes">Paquetes</option>
+                        <option value="Bolsas">Bolsas</option>
+                        <option value="Galón">Galón</option>
+                        <option value="Kilos">Kilos</option>
+                        <option value="Rollos">Rollos</option>
+                      </select>
+                    </td>
+
+                    <td class="py-2.5 px-4">
+                      <input type="text" v-model="item.cantidad" placeholder="Ej: 2 o 2 cajas"
+                             class="w-full bg-slate-950 border rounded-lg p-2 text-xs text-slate-100 font-bold focus:outline-none transition"
+                             :class="item.cantidad && item.cantidad.trim() !== '' ? 'border-cyan-400 bg-cyan-950/30' : 'border-slate-700 focus:border-cyan-500'">
+                    </td>
+
+                    <td class="py-2.5 px-4 text-center">
+                      <button v-if="item.esAdicional" type="button" @click="quitarProductoPlanta(idx)" class="text-rose-400 hover:text-rose-300 font-bold p-1" title="Eliminar ítem adicional">
+                        &times;
+                      </button>
+                      <span v-else class="text-slate-600">—</span>
+                    </td>
+
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Pie de Tabla: Agregar Ítem Adicional Libre -->
+            <div class="p-4 bg-slate-950 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center gap-2 flex-1 max-w-md">
+                <input type="text" v-model="nuevoProductoNombre" @keyup.enter="agregarProductoAdicionalPlanta" placeholder="Escribir nuevo producto adicional (Ej: COCOA, ESFERO)..."
+                       class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:border-amber-500 focus:outline-none">
+                <button type="button" @click="agregarProductoAdicionalPlanta" class="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow">
+                  <span>+ Agregar</span>
+                </button>
+              </div>
+
+              <!-- Botón Final de Despacho -->
+              <button type="button" @click="despacharRemisionSubmit" :disabled="procesandoDespacho"
+                      class="px-6 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-black transition flex items-center gap-2 shadow-lg shadow-cyan-950/50 disabled:opacity-50 active:scale-95">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                <span>{{ procesandoDespacho ? 'Despachando...' : '🚀 Generar y Despachar Remisión' }}</span>
+              </button>
+            </div>
+
+          </div>
+
+          <!-- Mensaje de Feedback Planta -->
+          <div v-if="mensajeRemisionPlanta" class="p-4 rounded-xl border text-xs font-bold"
+               :class="mensajeRemisionPlanta.exito ? 'bg-emerald-950/80 border-emerald-600 text-emerald-300' : 'bg-rose-950/80 border-rose-600 text-rose-300'">
+            {{ mensajeRemisionPlanta.texto }}
+          </div>
+
+          <!-- Historial de Remisiones Despachadas en Planta -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 class="text-sm font-bold text-slate-200">Historial de Remisiones Recientes (Planta)</h3>
+              <button type="button" @click="cargarHistorialPlanta" class="text-xs text-cyan-400 hover:underline flex items-center gap-1">
+                🔄 Actualizar
+              </button>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-950 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+                  <tr>
+                    <th class="py-2.5 px-3">N°</th>
+                    <th class="py-2.5 px-3">Tipo</th>
+                    <th class="py-2.5 px-3">Sede Destino</th>
+                    <th class="py-2.5 px-3">Fecha</th>
+                    <th class="py-2.5 px-3">Despachado</th>
+                    <th class="py-2.5 px-3">Estado</th>
+                    <th class="py-2.5 px-3">Recibido Por</th>
+                    <th class="py-2.5 px-3 text-center">Tirilla</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 font-medium">
+                  <tr v-for="rem in historialRemisiones" :key="rem.id" class="hover:bg-slate-800/40">
+                    <td class="py-2.5 px-3 font-mono font-bold text-rose-400">#{{ String(rem.numeroRemision).padStart(4, '0') }}</td>
+                    <td class="py-2.5 px-3 text-slate-300">{{ rem.tipo }}</td>
+                    <td class="py-2.5 px-3 font-bold text-slate-200">{{ rem.puntoVenta }}</td>
+                    <td class="py-2.5 px-3 text-slate-400">{{ rem.fecha }}</td>
+                    <td class="py-2.5 px-3 text-slate-300">{{ rem.despachadoPor }}</td>
+                    <td class="py-2.5 px-3">
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                            :class="rem.estado === 'RECIBIDA' ? 'bg-emerald-950 text-emerald-400 border border-emerald-600/50' : 'bg-amber-950 text-amber-400 border border-amber-600/50'">
+                        {{ rem.estado }}
+                      </span>
+                    </td>
+                    <td class="py-2.5 px-3 text-slate-300">{{ rem.recibidoPor || '—' }}</td>
+                    <td class="py-2.5 px-3 text-center">
+                      <button type="button" @click="descargarTirillaPng(rem)" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-lg text-[11px] font-bold transition border border-cyan-800/50 flex items-center gap-1 mx-auto">
+                        📥 PNG
+                      </button>
+                    </td>
+                  </tr>
+                  <tr v-if="historialRemisiones.length === 0">
+                    <td colspan="8" class="p-6 text-center text-slate-500">No hay remisiones despachadas aún.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ================= VISTA 2: PUNTO DE VENTA (RECEPCIÓN POS) ================= -->
+      <div v-if="subModoRemision === 'pos'" class="space-y-6">
+
+        <!-- Selector de Sede del POS -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+            <div>
+              <h2 class="text-lg font-black text-slate-100 flex items-center gap-2">
+                <span>Verificación y Recepción en Punto de Venta</span>
+              </h2>
+              <p class="text-xs text-slate-400 mt-0.5">Selecciona tu sede para ver las remisiones enviadas desde Planta y verificar el pedido físico.</p>
+            </div>
+            
+            <div class="flex items-center gap-3">
+              <label class="text-xs font-bold text-slate-300">Sede Actual:</label>
+              <select v-model="sedePosSeleccionada" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 font-bold focus:border-emerald-500 focus:outline-none">
+                <option value="Plaza 1">Plaza 1</option>
+                <option value="Plaza 2">Plaza 2</option>
+                <option value="Sede Principal">Sede Principal</option>
+                <option value="Salitre">Salitre</option>
+                <option value="Suba">Suba</option>
+                <option value="Chico">Chicó</option>
+              </select>
+              <button type="button" @click="cargarPendientesPos" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded-xl text-xs font-bold transition">
+                🔄 Refrescar
+              </button>
+            </div>
+          </div>
+
+          <!-- Listado de Remisiones de esta Sede -->
+          <div v-if="!remisionSeleccionadaPos">
+            <h3 class="text-xs font-bold text-slate-300 mb-3 uppercase tracking-wider">Despachos para {{ sedePosSeleccionada }}:</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div v-for="rem in remisionesPendientesPos" :key="rem.id"
+                   @click="seleccionarRemisionPos(rem)"
+                   class="bg-slate-950 border border-slate-800 hover:border-emerald-500 rounded-2xl p-4 cursor-pointer transition shadow-lg space-y-3 group">
+                
+                <div class="flex items-center justify-between">
+                  <span class="px-2.5 py-1 rounded-lg bg-rose-950 text-rose-300 font-mono font-black text-sm border border-rose-700/60">
+                    #{{ String(rem.numeroRemision).padStart(4, '0') }}
+                  </span>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                        :class="rem.estado === 'RECIBIDA' ? 'bg-emerald-950 text-emerald-400 border border-emerald-600/50' : 'bg-amber-950 text-amber-400 border border-amber-600/50'">
+                    {{ rem.estado }}
+                  </span>
+                </div>
+
+                <div class="text-xs space-y-1">
+                  <p class="text-slate-300"><span class="text-slate-500">Talonario:</span> <strong class="text-slate-100">{{ rem.tipo }}</strong></p>
+                  <p class="text-slate-300"><span class="text-slate-500">Fecha:</span> {{ rem.fecha }}</p>
+                  <p class="text-slate-300"><span class="text-slate-500">Despachado por:</span> {{ rem.despachadoPor }}</p>
+                  <p class="text-slate-300"><span class="text-slate-500">Productos:</span> {{ rem.items ? rem.items.length : 0 }} ítems</p>
+                </div>
+
+                <button type="button" class="w-full py-2 bg-emerald-600 group-hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition text-center shadow">
+                  {{ rem.estado === 'RECIBIDA' ? '👁️ Ver Detalle / Tirilla' : '📦 Verificar y Recibir' }}
+                </button>
+              </div>
+
+              <div v-if="remisionesPendientesPos.length === 0" class="col-span-full bg-slate-950/60 border border-slate-800/80 rounded-2xl p-8 text-center text-slate-500 text-xs">
+                No hay remisiones registradas para {{ sedePosSeleccionada }}.
+              </div>
+            </div>
+          </div>
+
+          <!-- Hoja de Verificación de Remisión Seleccionada (Checklist Solo Lectura) -->
+          <div v-else class="space-y-5">
+            
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+              <button type="button" @click="remisionSeleccionadaPos = null" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-bold">
+                ← Volver a lista de remisiones
+              </button>
+              <div class="flex items-center gap-3">
+                <span class="text-xs text-slate-400">Estado:</span>
+                <span class="px-2.5 py-1 rounded-full text-xs font-bold"
+                      :class="remisionSeleccionadaPos.estado === 'RECIBIDA' ? 'bg-emerald-950 text-emerald-400 border border-emerald-600' : 'bg-amber-950 text-amber-400 border border-amber-600'">
+                  {{ remisionSeleccionadaPos.estado }}
+                </span>
+                <button type="button" @click="descargarTirillaPng(remisionSeleccionadaPos)" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-xl text-xs font-bold border border-cyan-700/50 flex items-center gap-1">
+                  📥 Descargar PNG
+                </button>
+              </div>
+            </div>
+
+            <!-- Resumen de Cabecera -->
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+              <div>
+                <span class="text-slate-500 block">Consecutivo:</span>
+                <strong class="text-rose-400 font-mono text-lg font-black">#{{ String(remisionSeleccionadaPos.numeroRemision).padStart(4, '0') }}</strong>
+              </div>
+              <div>
+                <span class="text-slate-500 block">Punto de Venta:</span>
+                <strong class="text-slate-100">{{ remisionSeleccionadaPos.puntoVenta }}</strong>
+              </div>
+              <div>
+                <span class="text-slate-500 block">Fecha Despacho:</span>
+                <strong class="text-slate-100">{{ remisionSeleccionadaPos.fecha }}</strong>
+              </div>
+              <div>
+                <span class="text-slate-500 block">Despachado por (Planta):</span>
+                <strong class="text-cyan-400">{{ remisionSeleccionadaPos.despachadoPor }}</strong>
+              </div>
+            </div>
+
+            <!-- Tabla de Verificación de Productos (Solo Lectura de Cantidades) -->
+            <div class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden">
+              <div class="p-3 bg-slate-900 border-b border-slate-800 text-xs font-bold text-slate-300">
+                Verifica cada producto con la mercancía física:
+              </div>
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-950 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+                  <tr>
+                    <th class="py-2.5 px-3">Producto</th>
+                    <th class="py-2.5 px-3 w-32">Medida</th>
+                    <th class="py-2.5 px-3 w-32 font-bold text-slate-200">Cant. Enviada (Bloqueada)</th>
+                    <th class="py-2.5 px-3 w-48 text-center">Verificación Física</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 font-medium">
+                  <tr v-for="item in remisionSeleccionadaPos.items" :key="item.id" class="hover:bg-slate-900/40">
+                    <td class="py-2.5 px-3 text-slate-200 font-bold">
+                      {{ item.nombreProducto }}
+                      <span v-if="item.esAdicional" class="text-[9px] px-1 rounded bg-amber-950 text-amber-400 ml-1.5">Adicional</span>
+                    </td>
+                    <td class="py-2.5 px-3 text-slate-400">{{ item.unidadMedida || 'Unidades' }}</td>
+                    
+                    <!-- Cantidad BLOQUEADA (Solo lectura para el POS) -->
+                    <td class="py-2.5 px-3 font-mono font-black text-cyan-400 text-sm">
+                      {{ item.cantidad }}
+                    </td>
+
+                    <!-- Selector de Verificación ✓ o ✕ -->
+                    <td class="py-2.5 px-3 text-center">
+                      <div v-if="remisionSeleccionadaPos.estado !== 'RECIBIDA'" class="inline-flex rounded-lg border border-slate-800 p-0.5 bg-slate-900 gap-1">
+                        <button type="button" @click="item.recibidoOk = true"
+                                class="px-2.5 py-1 rounded text-xs font-bold transition flex items-center gap-1"
+                                :class="item.recibidoOk === true ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-slate-200'">
+                          ✓ OK
+                        </button>
+                        <button type="button" @click="item.recibidoOk = false"
+                                class="px-2.5 py-1 rounded text-xs font-bold transition flex items-center gap-1"
+                                :class="item.recibidoOk === false ? 'bg-rose-600 text-white' : 'text-slate-400 hover:text-slate-200'">
+                          ✕ No llegó
+                        </button>
+                      </div>
+                      <span v-else class="font-bold text-xs" :class="item.recibidoOk ? 'text-emerald-400' : 'text-rose-400'">
+                        {{ item.recibidoOk ? '✓ Recibido OK' : '✕ Novedad' }}
+                      </span>
+                    </td>
+
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Novedades y Firma de Recepción -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">Novedades / Observaciones del POS:</label>
+                <textarea v-model="novedadesPos" :disabled="remisionSeleccionadaPos.estado === 'RECIBIDA'" rows="3" placeholder="Si faltó mercancía o hubo empaques rotos, anótalo aquí..."
+                          class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:border-emerald-500 focus:outline-none disabled:opacity-60"></textarea>
+              </div>
+
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-xs font-bold text-slate-300 mb-1.5">Recibido por (Nombre y Firma POS):</label>
+                  <input type="text" v-model="recibidoPorPos" :disabled="remisionSeleccionadaPos.estado === 'RECIBIDA'" placeholder="Ej: Liz B"
+                         class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-bold focus:border-emerald-500 focus:outline-none disabled:opacity-60">
+                </div>
+
+                <div v-if="remisionSeleccionadaPos.estado !== 'RECIBIDA'">
+                  <button type="button" @click="confirmarRecepcionPosSubmit" :disabled="procesandoConfirmacionPos"
+                          class="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-black transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/50 disabled:opacity-50 active:scale-95">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    <span>{{ procesandoConfirmacionPos ? 'Guardando...' : '✅ Confirmar y Guardar Recepción' }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Feedback POS -->
+            <div v-if="mensajeRemisionPos" class="p-4 rounded-xl border text-xs font-bold"
+                 :class="mensajeRemisionPos.exito ? 'bg-emerald-950/80 border-emerald-600 text-emerald-300' : 'bg-rose-950/80 border-rose-600 text-rose-300'">
+              {{ mensajeRemisionPos.texto }}
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ================= PLANTILLA OCULTA PARA DESCARGAR IMAGEN PNG DE LA TIRILLA ================= -->
+    <div id="tirilla-remision-exportar" style="position: fixed; left: -9999px; top: 0; width: 380px; background: #ffffff; color: #111111; font-family: monospace; padding: 16px; border: 1px solid #cccccc;">
+      <div v-if="remisionImprimir" style="font-size: 11px;">
+        <!-- Logo y Encabezado idéntico al talonario físico -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 8px;">
+          <div>
+            <h1 style="font-size: 16px; font-weight: 900; margin: 0; letter-spacing: -0.5px;">Salgueros</h1>
+            <p style="font-size: 13px; font-weight: bold; margin: 0; text-transform: uppercase;">REMISIÓN</p>
+            <span style="font-size: 9px; color: #555;">{{ remisionImprimir.tipo }}</span>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 22px; font-weight: 900; color: #dc2626; line-height: 1;">
+              {{ String(remisionImprimir.numeroRemision).padStart(4, '0') }}
+            </div>
+            <div style="font-size: 9px; margin-top: 4px; border: 1px solid #777; padding: 2px 4px;">
+              FECHA: {{ remisionImprimir.fecha }}
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size: 10px; margin-bottom: 8px;">
+          <div><strong>PUNTO DE VENTA:</strong> {{ remisionImprimir.puntoVenta }}</div>
+          <div><strong>CIUDAD:</strong> {{ remisionImprimir.ciudad || 'BOGOTÁ D.C.' }}</div>
+        </div>
+
+        <!-- Tabla de ítems con checks -->
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 10px;">
+          <thead>
+            <tr style="border-top: 1px solid #000; border-bottom: 1px solid #000; background: #f3f3f3;">
+              <th style="text-align: left; padding: 3px 2px;">PRODUCTO</th>
+              <th style="text-align: center; padding: 3px 2px; width: 50px;">MEDIDA</th>
+              <th style="text-align: right; padding: 3px 2px; width: 55px;">CANT.</th>
+              <th style="text-align: center; padding: 3px 2px; width: 35px;">EST.</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="it in remisionImprimir.items" :key="it.id" style="border-bottom: 1px dotted #ccc;">
+              <td style="padding: 3px 2px; font-weight: bold;">{{ it.nombreProducto }}</td>
+              <td style="padding: 3px 2px; text-align: center; font-size: 9px;">{{ it.unidadMedida || 'Unid' }}</td>
+              <td style="padding: 3px 2px; text-align: right; font-weight: bold;">{{ it.cantidad }}</td>
+              <td style="padding: 3px 2px; text-align: center; font-weight: 900;" :style="{ color: it.recibidoOk === false ? '#dc2626' : '#16a34a' }">
+                {{ it.recibidoOk === false ? '✕' : '✓' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Novedades -->
+        <div v-if="remisionImprimir.novedades" style="border: 1px solid #999; padding: 6px; font-size: 9px; margin-bottom: 8px; background: #fdf2f2;">
+          <strong>NOVEDADES:</strong> {{ remisionImprimir.novedades }}
+        </div>
+
+        <!-- Firmas -->
+        <div style="display: flex; justify-content: space-between; border-top: 1px solid #000; padding-top: 8px; font-size: 10px; margin-top: 10px;">
+          <div style="width: 48%; border: 1px solid #999; padding: 4px; text-align: center;">
+            <span style="font-size: 8px; display: block; color: #666;">DESPACHADO</span>
+            <strong>{{ remisionImprimir.despachadoPor }}</strong>
+          </div>
+          <div style="width: 48%; border: 1px solid #999; padding: 4px; text-align: center;">
+            <span style="font-size: 8px; display: block; color: #666;">RECIBIDO</span>
+            <strong>{{ remisionImprimir.recibidoPor || '(Pendiente)' }}</strong>
+          </div>
+        </div>
+
+        <div style="text-align: center; font-size: 8px; color: #777; margin-top: 8px;">
+          Sistema Salgueros — Generado digitalmente
+        </div>
+      </div>
+    </div>
+
     
     <!-- Modal Rápido de Eliminación / Retiro de Personal -->
     <div v-cloak v-if="mostrarModalEliminar" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
@@ -1640,7 +2189,7 @@
       }
     };
 
-    const { createApp, ref, reactive, computed, onMounted } = Vue;
+    const { createApp, ref, reactive, computed, onMounted, watch, nextTick } = Vue;
 
     createApp({
       setup() {
@@ -2435,8 +2984,8 @@
             cerrarFormEliminarEmpleado();
           }
 
-          // Si entramos a Turnos, pausamos temporalmente el bucle de IA para ahorrar CPU
-          if (nuevoModo === 'turnos') {
+          // Si entramos a Turnos o Remisiones, pausamos temporalmente el bucle de IA para ahorrar CPU
+          if (nuevoModo === 'turnos' || nuevoModo === 'remisiones') {
             pausarBucleDeteccion();
           }
 
@@ -5214,6 +5763,451 @@
           }
         };
 
+        // =========================================================================
+        // MÓDULO REMISIONES Y DESPACHOS (PLANTA CENTRAL & PUNTOS DE VENTA POS)
+        // =========================================================================
+        const subModoRemision = ref('planta');
+        const tipoRemisionActivo = ref('INSUMOS');
+        const pinPlantaInput = ref('');
+        const pinDesbloqueoPlanta = ref('');
+        const plantaBloqueada = ref(true);
+        const errorPinPlanta = ref('');
+
+        const CATALOGO_INSUMOS_BASE = [
+          { nombreProducto: 'Café Grano', unidadMedida: 'Kilos' },
+          { nombreProducto: 'Azúcar Blanca', unidadMedida: 'Kilos' },
+          { nombreProducto: 'Azúcar Morena', unidadMedida: 'Kilos' },
+          { nombreProducto: 'Splenda / Stevia', unidadMedida: 'Cajas' },
+          { nombreProducto: 'Leche Entera', unidadMedida: 'Bolsas' },
+          { nombreProducto: 'Leche Deslactosada', unidadMedida: 'Bolsas' },
+          { nombreProducto: 'Leche Almendras', unidadMedida: 'Cajas' },
+          { nombreProducto: 'Chocolate Pastilla', unidadMedida: 'Kilos' },
+          { nombreProducto: 'Vasos 4 oz', unidadMedida: 'Paquetes' },
+          { nombreProducto: 'Vasos 7 oz', unidadMedida: 'Paquetes' },
+          { nombreProducto: 'Vasos 9 oz', unidadMedida: 'Paquetes' },
+          { nombreProducto: 'Vasos 12 oz', unidadMedida: 'Paquetes' },
+          { nombreProducto: 'Tapas Vaso Caliente', unidadMedida: 'Paquetes' },
+          { nombreProducto: 'Vasos Frío / Domo', unidadMedida: 'Paquetes' },
+          { nombreProducto: 'Tapas Domo', unidadMedida: 'Paquetes' },
+          { nombreProducto: 'Pitillos', unidadMedida: 'Paquetes' },
+          { nombreProducto: 'Mezcladores', unidadMedida: 'Paquetes' },
+          { nombreProducto: 'Servilletas', unidadMedida: 'Paquetes' },
+          { nombreProducto: 'Bolsas Papel Kraft', unidadMedida: 'Paquetes' },
+          { nombreProducto: 'Bolsas Plásticas', unidadMedida: 'Paquetes' },
+          { nombreProducto: 'Removedores Madera', unidadMedida: 'Paquetes' },
+          { nombreProducto: 'Papel Higiénico', unidadMedida: 'Rollos' },
+          { nombreProducto: 'Toallas de Manos', unidadMedida: 'Rollos' },
+          { nombreProducto: 'Jabón Líquido Manos', unidadMedida: 'Galón' },
+          { nombreProducto: 'Jabón Loza', unidadMedida: 'Galón' },
+          { nombreProducto: 'Cloro / Límpido', unidadMedida: 'Galón' },
+          { nombreProducto: 'Desengrasante', unidadMedida: 'Galón' },
+          { nombreProducto: 'Limpiapisos', unidadMedida: 'Galón' },
+          { nombreProducto: 'Esponjillas', unidadMedida: 'Unidades' },
+          { nombreProducto: 'Guantes Nitrilo', unidadMedida: 'Cajas' },
+          { nombreProducto: 'Bolsas Basura Negras', unidadMedida: 'Paquetes' },
+          { nombreProducto: 'Bolsas Basura Blancas', unidadMedida: 'Paquetes' }
+        ];
+
+        const CATALOGO_COMIDA_BASE = [
+          { nombreProducto: 'Croissant Mantequilla', unidadMedida: 'Unidades' },
+          { nombreProducto: 'Croissant Almendras', unidadMedida: 'Unidades' },
+          { nombreProducto: 'Pan de Bono', unidadMedida: 'Unidades' },
+          { nombreProducto: 'Pan de Yuca', unidadMedida: 'Unidades' },
+          { nombreProducto: 'Almojábana', unidadMedida: 'Unidades' },
+          { nombreProducto: 'Pastel de Pollo', unidadMedida: 'Unidades' },
+          { nombreProducto: 'Pastel de Carne', unidadMedida: 'Unidades' },
+          { nombreProducto: 'Pastel Gloria', unidadMedida: 'Unidades' },
+          { nombreProducto: 'Empanada Carne', unidadMedida: 'Unidades' },
+          { nombreProducto: 'Empanada Pollo', unidadMedida: 'Unidades' },
+          { nombreProducto: 'Galleta Avena', unidadMedida: 'Unidades' },
+          { nombreProducto: 'Brownie', unidadMedida: 'Unidades' },
+          { nombreProducto: 'Muffin Vainilla / Arándanos', unidadMedida: 'Unidades' },
+          { nombreProducto: 'Torta Zanahoria', unidadMedida: 'Unidades' },
+          { nombreProducto: 'Torta Chocolate', unidadMedida: 'Unidades' }
+        ];
+
+        const siguienteConsecutivo = ref('0001');
+        const sedeDestinoRemision = ref('Plaza 1');
+        const fechaDespachoRemision = ref(hoyStr);
+        const despachadoPorRemision = ref('DANIEL');
+        const itemsRemisionPlanta = ref([]);
+        const nuevoProductoNombre = ref('');
+        const procesandoDespacho = ref(false);
+        const mensajeRemisionPlanta = ref(null);
+        const historialRemisiones = ref([]);
+
+        // POS
+        const sedePosSeleccionada = ref('Plaza 1');
+        const remisionesPendientesPos = ref([]);
+        const remisionSeleccionadaPos = ref(null);
+        const recibidoPorPos = ref('');
+        const novedadesPos = ref('');
+        const procesandoConfirmacionPos = ref(false);
+        const mensajeRemisionPos = ref(null);
+        const remisionImprimir = ref(null);
+
+        const obtenerRemisionesLocales = () => {
+          try {
+            const raw = safeStorage.getItem('salgueros_remisiones_data');
+            return raw ? JSON.parse(raw) : [];
+          } catch (e) {
+            return [];
+          }
+        };
+
+        const guardarRemisionesLocales = (arr) => {
+          try {
+            safeStorage.setItem('salgueros_remisiones_data', JSON.stringify(arr));
+          } catch (e) {
+            console.warn('Error guardando en localStorage:', e);
+          }
+        };
+
+        const calcularConsecutivoLocal = (tipo) => {
+          const rems = obtenerRemisionesLocales().filter(r => r.tipo === tipo);
+          if (!rems.length) return '0001';
+          const max = Math.max(...rems.map(r => Number(r.numeroRemision) || 0));
+          return String(max + 1).padStart(4, '0');
+        };
+
+        const desbloquearPlanta = async () => {
+          errorPinPlanta.value = '';
+          const pin = pinDesbloqueoPlanta.value ? pinDesbloqueoPlanta.value.trim() : '';
+          if (!pin) {
+            errorPinPlanta.value = 'Ingresa la clave de Planta.';
+            return;
+          }
+          const pinHash = await calcularHashSHA256(pin);
+          if (pin.toLowerCase() === 'planta2026' || pin === '1234' || HASH_ADMIN_VALIDOS.includes(pinHash)) {
+            plantaBloqueada.value = false;
+            pinPlantaInput.value = pin;
+            pinDesbloqueoPlanta.value = '';
+          } else {
+            errorPinPlanta.value = 'Clave incorrecta para Planta.';
+          }
+        };
+
+        const cargarDatosPlanta = async () => {
+          const catalogo = tipoRemisionActivo.value === 'INSUMOS' ? CATALOGO_INSUMOS_BASE : CATALOGO_COMIDA_BASE;
+          itemsRemisionPlanta.value = catalogo.map(it => ({
+            nombreProducto: it.nombreProducto,
+            unidadMedida: it.unidadMedida,
+            cantidad: '',
+            recibidoOk: true,
+            esAdicional: false
+          }));
+
+          try {
+            const resp = await fetch(`${apiBaseUrl}/api/remisiones/consecutivo?tipo=${tipoRemisionActivo.value}`);
+            if (resp.ok) {
+              const data = await resp.json();
+              if (data && data.siguienteConsecutivo) {
+                siguienteConsecutivo.value = data.siguienteConsecutivo;
+                return;
+              }
+            }
+          } catch (e) {
+            // fallback local
+          }
+          siguienteConsecutivo.value = calcularConsecutivoLocal(tipoRemisionActivo.value);
+        };
+
+        const agregarProductoAdicionalPlanta = () => {
+          const nombre = nuevoProductoNombre.value ? nuevoProductoNombre.value.trim().toUpperCase() : '';
+          if (!nombre) return;
+          itemsRemisionPlanta.value.push({
+            nombreProducto: nombre,
+            unidadMedida: 'Unidades',
+            cantidad: '',
+            recibidoOk: true,
+            esAdicional: true
+          });
+          nuevoProductoNombre.value = '';
+        };
+
+        const quitarProductoPlanta = (idx) => {
+          itemsRemisionPlanta.value.splice(idx, 1);
+        };
+
+        const despacharRemisionSubmit = async () => {
+          mensajeRemisionPlanta.value = null;
+          const pin = pinPlantaInput.value ? pinPlantaInput.value.trim() : '';
+          if (!pin) {
+            mensajeRemisionPlanta.value = { exito: false, texto: '⚠️ Debes ingresar la clave de Planta.' };
+            return;
+          }
+          const itemsAEnviar = itemsRemisionPlanta.value.filter(i => i.cantidad && String(i.cantidad).trim() !== '');
+          if (!itemsAEnviar.length) {
+            mensajeRemisionPlanta.value = { exito: false, texto: '⚠️ Ingresa al menos una cantidad a despachar.' };
+            return;
+          }
+
+          procesandoDespacho.value = true;
+          const payload = {
+            tipo: tipoRemisionActivo.value,
+            puntoVenta: sedeDestinoRemision.value,
+            fecha: fechaDespachoRemision.value || hoyStr,
+            despachadoPor: despachadoPorRemision.value || 'DANIEL',
+            pinPlanta: pin,
+            items: itemsAEnviar.map(i => ({
+              nombreProducto: i.nombreProducto,
+              unidadMedida: i.unidadMedida,
+              cantidad: String(i.cantidad).trim(),
+              esAdicional: !!i.esAdicional
+            }))
+          };
+
+          try {
+            let remisionGuardada = null;
+            let guardadoEnBackend = false;
+            try {
+              const resp = await fetch(`${apiBaseUrl}/api/remisiones`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              if (resp.ok) {
+                const data = await resp.json();
+                if (data.exito && data.remision) {
+                  remisionGuardada = data.remision;
+                  guardadoEnBackend = true;
+                }
+              }
+            } catch (netErr) {
+              console.warn('Backend no disponible para remisiones, guardando local:', netErr);
+            }
+
+            if (!remisionGuardada) {
+              const locConsecutivo = calcularConsecutivoLocal(payload.tipo);
+              remisionGuardada = {
+                id: Date.now(),
+                tipo: payload.tipo,
+                numeroRemision: locConsecutivo,
+                puntoVenta: payload.puntoVenta,
+                ciudad: 'BOGOTÁ D.C.',
+                fecha: payload.fecha,
+                despachadoPor: payload.despachadoPor,
+                estado: 'PENDIENTE',
+                recibidoPor: null,
+                novedades: null,
+                fechaCreacion: new Date().toISOString(),
+                items: payload.items.map((it, idx) => ({
+                  id: Date.now() + idx,
+                  nombreProducto: it.nombreProducto,
+                  unidadMedida: it.unidadMedida,
+                  cantidad: it.cantidad,
+                  esAdicional: it.esAdicional,
+                  recibidoOk: true
+                }))
+              };
+            }
+
+            const rems = obtenerRemisionesLocales();
+            const existIdx = rems.findIndex(r => r.id === remisionGuardada.id || (r.tipo === remisionGuardada.tipo && String(r.numeroRemision) === String(remisionGuardada.numeroRemision)));
+            if (existIdx >= 0) {
+              rems[existIdx] = remisionGuardada;
+            } else {
+              rems.unshift(remisionGuardada);
+            }
+            guardarRemisionesLocales(rems);
+
+            mensajeRemisionPlanta.value = {
+              exito: true,
+              texto: `✅ Remisión #${String(remisionGuardada.numeroRemision).padStart(4, '0')} despachada con éxito para ${remisionGuardada.puntoVenta}. ${guardadoEnBackend ? '(Sincronizada con servidor)' : '(Guardada localmente)'}`
+            };
+
+            // Auto-bloqueo antifraude inmediato
+            plantaBloqueada.value = true;
+            pinPlantaInput.value = '';
+            pinDesbloqueoPlanta.value = '';
+
+            cargarDatosPlanta();
+            await cargarHistorialPlanta();
+
+          } catch (err) {
+            mensajeRemisionPlanta.value = { exito: false, texto: 'Error al procesar despacho: ' + err.message };
+          } finally {
+            procesandoDespacho.value = false;
+          }
+        };
+
+        const cargarHistorialPlanta = async () => {
+          let rems = [];
+          try {
+            const resp = await fetch(`${apiBaseUrl}/api/remisiones/recientes`);
+            if (resp.ok) {
+              const data = await resp.json();
+              if (Array.isArray(data)) rems = data;
+            }
+          } catch (e) {
+            console.warn('Fallo cargando historial remoto, usando local:', e);
+          }
+          const locRems = obtenerRemisionesLocales();
+          const mapa = new Map();
+          locRems.forEach(r => mapa.set(`${r.tipo}-${r.numeroRemision}`, r));
+          rems.forEach(r => mapa.set(`${r.tipo}-${r.numeroRemision}`, r));
+          historialRemisiones.value = Array.from(mapa.values()).sort((a,b) => (Number(b.numeroRemision)||0) - (Number(a.numeroRemision)||0));
+        };
+
+        const cargarPendientesPos = async () => {
+          let rems = [];
+          try {
+            const resp = await fetch(`${apiBaseUrl}/api/remisiones/sede/${encodeURIComponent(sedePosSeleccionada.value)}`);
+            if (resp.ok) {
+              const data = await resp.json();
+              if (Array.isArray(data)) rems = data;
+            }
+          } catch (e) {
+            console.warn('Fallo cargando remisiones POS de backend, usando local:', e);
+          }
+          const locRems = obtenerRemisionesLocales().filter(r => r.puntoVenta === sedePosSeleccionada.value);
+          const mapa = new Map();
+          locRems.forEach(r => mapa.set(`${r.tipo}-${r.numeroRemision}`, r));
+          rems.forEach(r => mapa.set(`${r.tipo}-${r.numeroRemision}`, r));
+          remisionesPendientesPos.value = Array.from(mapa.values()).sort((a,b) => (Number(b.numeroRemision)||0) - (Number(a.numeroRemision)||0));
+        };
+
+        const seleccionarRemisionPos = (rem) => {
+          const clone = JSON.parse(JSON.stringify(rem));
+          if (clone.items) {
+            clone.items.forEach(it => {
+              if (it.recibidoOk === undefined || it.recibidoOk === null) {
+                it.recibidoOk = true;
+              }
+            });
+          }
+          remisionSeleccionadaPos.value = clone;
+          recibidoPorPos.value = clone.recibidoPor || '';
+          novedadesPos.value = clone.novedades || '';
+          mensajeRemisionPos.value = null;
+        };
+
+        const confirmarRecepcionPosSubmit = async () => {
+          if (!remisionSeleccionadaPos.value) return;
+          if (!recibidoPorPos.value || !recibidoPorPos.value.trim()) {
+            mensajeRemisionPos.value = { exito: false, texto: '⚠️ Debes ingresar el nombre de quien recibe en el punto de venta.' };
+            return;
+          }
+
+          procesandoConfirmacionPos.value = true;
+          mensajeRemisionPos.value = null;
+
+          const payload = {
+            recibidoPor: recibidoPorPos.value.trim().toUpperCase(),
+            novedades: novedadesPos.value ? novedadesPos.value.trim() : '',
+            itemsVerificados: remisionSeleccionadaPos.value.items.map(it => ({
+              idItem: it.id,
+              recibidoOk: it.recibidoOk !== false
+            }))
+          };
+
+          try {
+            let confirmadaRem = null;
+            try {
+              const resp = await fetch(`${apiBaseUrl}/api/remisiones/${remisionSeleccionadaPos.value.id}/confirmar`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              if (resp.ok) {
+                const data = await resp.json();
+                if (data.exito && data.remision) {
+                  confirmadaRem = data.remision;
+                }
+              }
+            } catch (e) {
+              console.warn('Backend no disponible para confirmar recepción, guardando local:', e);
+            }
+
+            if (!confirmadaRem) {
+              confirmadaRem = {
+                ...remisionSeleccionadaPos.value,
+                estado: 'RECIBIDA',
+                recibidoPor: payload.recibidoPor,
+                novedades: payload.novedades,
+                items: remisionSeleccionadaPos.value.items.map(it => ({
+                  ...it,
+                  recibidoOk: it.recibidoOk !== false
+                }))
+              };
+            }
+
+            const rems = obtenerRemisionesLocales();
+            const idx = rems.findIndex(r => r.id === confirmadaRem.id || (r.tipo === confirmadaRem.tipo && String(r.numeroRemision) === String(confirmadaRem.numeroRemision)));
+            if (idx >= 0) {
+              rems[idx] = confirmadaRem;
+            } else {
+              rems.unshift(confirmadaRem);
+            }
+            guardarRemisionesLocales(rems);
+
+            remisionSeleccionadaPos.value = confirmadaRem;
+            mensajeRemisionPos.value = {
+              exito: true,
+              texto: `✅ Recepción confirmada exitosamente para la Remisión #${String(confirmadaRem.numeroRemision).padStart(4, '0')}.`
+            };
+
+            await cargarPendientesPos();
+            if (typeof reproducirSonido === 'function') reproducirSonido('exito');
+
+          } catch (err) {
+            mensajeRemisionPos.value = { exito: false, texto: 'Error al confirmar recepción: ' + err.message };
+          } finally {
+            procesandoConfirmacionPos.value = false;
+          }
+        };
+
+        const descargarTirillaPng = async (rem) => {
+          if (!rem) return;
+          remisionImprimir.value = rem;
+          await nextTick();
+          try {
+            const el = document.getElementById('tirilla-remision-exportar');
+            if (!el || typeof html2canvas !== 'function') {
+              alert('html2canvas no está disponible o no se encontró la plantilla.');
+              return;
+            }
+            const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+            const imgData = canvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.download = `Remision_${rem.tipo}_${String(rem.numeroRemision).padStart(4, '0')}_${(rem.puntoVenta || 'Sede').replace(/\s+/g, '_')}.png`;
+            a.href = imgData;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          } catch (err) {
+            console.error('Error generando tirilla PNG:', err);
+            alert('Error al generar la imagen de la remisión: ' + err.message);
+          }
+        };
+
+        watch(tipoRemisionActivo, () => {
+          cargarDatosPlanta();
+        });
+
+        watch(sedePosSeleccionada, () => {
+          if (subModoRemision.value === 'pos') {
+            cargarPendientesPos();
+          }
+        });
+
+        watch(modoActivo, (nuevo) => {
+          if (nuevo === 'remisiones') {
+            cargarDatosPlanta();
+            cargarHistorialPlanta();
+            cargarPendientesPos();
+          }
+        });
+
+        watch(subModoRemision, (nuevo) => {
+          if (nuevo === 'pos') {
+            cargarPendientesPos();
+          } else if (nuevo === 'planta') {
+            cargarDatosPlanta();
+            cargarHistorialPlanta();
+          }
+        });
+
         return {
           apiBaseUrl,
           backendOnline,
@@ -5393,7 +6387,41 @@
           formContingencia,
           procesandoContingencia,
           mensajeContingencia,
-          enviarContingencia
+          enviarContingencia,
+          // Remisiones y Despachos
+          subModoRemision,
+          tipoRemisionActivo,
+          pinPlantaInput,
+          pinDesbloqueoPlanta,
+          plantaBloqueada,
+          errorPinPlanta,
+          desbloquearPlanta,
+          siguienteConsecutivo,
+          sedeDestinoRemision,
+          fechaDespachoRemision,
+          despachadoPorRemision,
+          itemsRemisionPlanta,
+          nuevoProductoNombre,
+          procesandoDespacho,
+          mensajeRemisionPlanta,
+          historialRemisiones,
+          cargarDatosPlanta,
+          agregarProductoAdicionalPlanta,
+          quitarProductoPlanta,
+          despacharRemisionSubmit,
+          cargarHistorialPlanta,
+          sedePosSeleccionada,
+          remisionesPendientesPos,
+          remisionSeleccionadaPos,
+          recibidoPorPos,
+          novedadesPos,
+          procesandoConfirmacionPos,
+          mensajeRemisionPos,
+          cargarPendientesPos,
+          seleccionarRemisionPos,
+          confirmarRecepcionPosSubmit,
+          remisionImprimir,
+          descargarTirillaPng
         };
       }
     }).mount('#app');
