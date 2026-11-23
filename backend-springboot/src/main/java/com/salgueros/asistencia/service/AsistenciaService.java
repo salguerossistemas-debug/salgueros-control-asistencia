@@ -83,10 +83,12 @@ public class AsistenciaService {
             throw new SecurityException("Acceso Denegado: PIN de Administrador requerido.");
         }
         String p = pin.trim();
-        // Solo salgueros2026 y salgueros2026. son admitidos estrictamente (se bloquea 2026 y 2586)
-        boolean valido = "salgueros2026".equalsIgnoreCase(p) 
-                || "salgueros2026.".equalsIgnoreCase(p)
-                || (adminPin != null && p.equals(adminPin.trim()) && !"2026".equals(p) && !"2586".equals(p));
+        // Valida contra el PIN configurado (salgueros.admin.pin / SALGUEROS_ADMIN_PIN) y bloquea PINs reservados
+        boolean valido = adminPin != null
+                && !adminPin.isBlank()
+                && p.equals(adminPin.trim())
+                && !"2026".equals(p)
+                && !"2586".equals(p);
         if (!valido) {
             throw new SecurityException("Acceso Denegado: PIN de Administrador incorrecto.");
         }
