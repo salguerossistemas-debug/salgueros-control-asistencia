@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Usuario y Control de Usuario — Salgueros</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #06b6d4;
+      --ok: #10b981;
+      --warn: #f59e0b;
+      --danger: #f43f5e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 24px;
+    }
+    .container {
+      max-width: 980px;
+      margin: 0 auto;
+    }
+    header {
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      border: 1px solid var(--border);
+      border-left: 6px solid var(--accent);
+      border-radius: 14px;
+      padding: 24px 28px;
+      margin-bottom: 24px;
+    }
+    header h1 {
+      margin: 0 0 6px 0;
+      font-size: 1.7rem;
+      color: #fff;
+    }
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      background: rgba(6, 182, 212, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(6, 182, 212, 0.4);
+      margin-bottom: 10px;
+    }
+    section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px 26px;
+      margin-bottom: 20px;
+    }
+    h2 {
+      margin-top: 0;
+      font-size: 1.25rem;
+      color: #fff;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+    h3 {
+      margin-top: 18px;
+      margin-bottom: 8px;
+      font-size: 1.05rem;
+      color: var(--accent);
+    }
+    ul, ol {
+      padding-left: 20px;
+      margin: 8px 0;
+    }
+    li { margin-bottom: 6px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 0.9rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #0f172a;
+      color: #fff;
+      font-weight: 700;
+    }
+    code {
+      background: #0f172a;
+      color: #38bdf8;
+      padding: 2px 6px;
+      border-radius: 5px;
+      font-family: Consolas, monospace;
+      font-size: 0.85em;
+    }
+    .alert {
+      padding: 12px 16px;
+      border-radius: 10px;
+      margin: 12px 0;
+      font-size: 0.92rem;
+      border: 1px solid;
+    }
+    .alert-ok { background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.45); color: #a7f3d0; }
+    .alert-warn { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.45); color: #fde68a; }
+    .alert-danger { background: rgba(244, 63, 94, 0.12); border-color: rgba(244, 63, 94, 0.45); color: #fecdd3; }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .box {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .print-btn {
+      float: right;
+      background: var(--accent);
+      color: #0f172a;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    @media print {
+      body { background: #fff; color: #111; padding: 0; }
+      header, section, .box { background: #fff; color: #111; border-color: #cbd5e1; }
+      h1, h2, th { color: #0f172a; }
+      h3 { color: #0369a1; }
+      th { background: #f1f5f9; }
+      code { background: #f1f5f9; color: #0369a1; }
+      .alert { color: #111; }
+      .print-btn { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <button class="print-btn" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+      <span class="badge">SALGUEROS — VERSIÓN PRODUCCIÓN</span>
+      <h1>Manual de Usuario y Control de Usuario</h1>
+      <p>Guía operativa completa del Sistema de Control de Asistencia Biométrica, Turnos y Remisiones de Salgueros.</p>
+    </header>
+
+    <section>
+      <h2>1. Acceso al Aplicativo y Requisitos</h2>
+      <ul>
+        <li><strong>URL del aplicativo (Web / POS / Celular):</strong> <code>https://salguerossistemas-debug.github.io/salgueros-control-asistencia/</code></li>
+        <li><strong>Estado de conexión:</strong> En la parte superior derecha debe aparecer el indicador verde <strong>Backend: Conectado</strong> y <strong>IA: Modelos Listos</strong>. Si el servidor estaba en reposo, la primera carga puede tardar ~30–50 segundos.</li>
+        <li><strong>Cámara recomendada (PC Todo en Uno):</strong> Cámara web USB 720p Plug &amp; Play (ej. <strong>Xtech XTW-720</strong>). La aplicación solicita <code>640×480</code> sin audio.</li>
+        <li><strong>Condiciones de iluminación:</strong> Ubicar el equipo con luz frontal o ambiental pareja, evitando ventanas o luces fuertes justo detrás de la persona (contraluz).</li>
+      </ul>
+      <div class="alert alert-warn">
+        <strong>Importante:</strong> Para que la información se comparta entre PC y celulares en tiempo real, todos los dispositivos deben abrir la <strong>misma URL de GitHub Pages</strong> (no <code>localhost</code>).
+      </div>
+    </section>
+
+    <section>
+      <h2>2. Control de Usuario, Roles y Claves</h2>
+      <p>El aplicativo separa las funciones operativas de las administrativas mediante claves (PIN) y validación de red:</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Perfil / Rol</th>
+            <th>Qué puede hacer</th>
+            <th>Clave / Control</th>
+            <th>Dónde se configura en producción</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Empleado (POS / Sede)</strong></td>
+            <td>Marcar asistencia facial (<code>1. Marcación POS</code>) y confirmar recepción de pedidos en su punto de venta (<code>3. Remisiones → Punto de Venta</code>).</td>
+            <td>Sin clave. Validación biométrica + <strong>IP pública autorizada</strong> de la sede para marcación.</td>
+            <td>Variable <code>SALGUEROS_SEDES_IPS_AUTORIZADAS</code> en Render (IP fija o DuckDNS).</td>
+          </tr>
+          <tr>
+            <td><strong>Planta (Despachos)</strong></td>
+            <td>Desbloquear el talonario de Planta, crear y despachar remisiones de Insumos y Comida, y consultar historial de despachos.</td>
+            <td>Clave de Planta (por defecto <code>planta2026</code>) o clave de Administrador. <strong>Auto-bloqueo</strong> al despachar.</td>
+            <td>Variable <code>SALGUEROS_PLANTA_PIN</code> en Render.</td>
+          </tr>
+          <tr>
+            <td><strong>Administrador</strong></td>
+            <td>Crear/eliminar empleados, enrolar rostros, programar mallas semanales, bloquear turnos, descargar Excel de nómina y limpiar remisiones.</td>
+            <td>Clave Administrativa (por defecto <code>salgueros2026</code> en local / configurada en Render).</td>
+            <td>Variable <code>SALGUEROS_ADMIN_PIN</code> en Render.</td>
+          </tr>
+          <tr>
+            <td><strong>Contingencia</strong></td>
+            <td>Aplicar marcaciones o novedades excepcionales cuando hay corte de luz o caída de internet.</td>
+            <td>Clave de Contingencia (por defecto <code>2586</code>).</td>
+            <td>Variable <code>SALGUEROS_PIN_CONTINGENCIA</code> en Render.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>3. Operación por Módulos</h2>
+
+      <h3>Módulo 1: Marcación POS (Reconocimiento Facial)</h3>
+      <ol>
+        <li>En la pestaña <strong>1. Marcación POS</strong>, verificar que la cámara esté activa y se vea el recuadro verde sobre el rostro.</li>
+        <li>Mirar de frente a la cámara durante 1–2 segundos y <strong>parpadear naturalmente</strong> para superar la prueba de vida (evita uso de fotos).</li>
+        <li>Seleccionar el tipo de marcación correspondiente:
+          <ul>
+            <li><strong>Entrada</strong> (aplica alivio configurado de entrada, por defecto 8 min).</li>
+            <li><strong>Salida Almuerzo</strong> / <strong>Regreso Almuerzo</strong>.</li>
+            <li><strong>Salida Laboral</strong>.</li>
+          </ul>
+        </li>
+      </ol>
+      <div class="alert alert-danger">
+        <strong>Regla de cierre de jornada:</strong> Una vez registrada la <strong>Salida Laboral</strong> del día, la jornada queda cerrada y bloqueada permanentemente para evitar alteraciones de horario.
+      </div>
+
+      <h3>Módulo 2: Enrolar Rostro</h3>
+      <ol>
+        <li>Ir a la pestaña <strong>2. Enrolar Rostro</strong>.</li>
+        <li>Seleccionar el empleado activo (o crearlo previamente con clave de Administrador).</li>
+        <li>Ubicar al empleado frente a la cámara con buena luz y capturar el rostro para guardar su vector biométrico de 128 dimensiones.</li>
+      </ol>
+
+      <h3>Módulo 3: Remisiones / Despachos (Planta y POS)</h3>
+      <div class="grid-2">
+        <div class="box">
+          <h4>A. Desde Planta Central (Despachar)</h4>
+          <ol>
+            <li>Entrar a <strong>3. Remisiones / Despachos → Planta (Despachar)</strong>.</li>
+            <li>Ingresar la clave de Planta y desbloquear.</li>
+            <li>Elegir el talonario: <strong>Insumos y Aseo</strong> o <strong>Comida y Alimentos</strong>.</li>
+            <li>Seleccionar el <strong>Punto de Venta Destino</strong> (agrupados en <strong>ZONA SUR</strong> y <strong>ZONA NORTE</strong>), fecha y nombre de quien despacha.</li>
+            <li>Digitar las cantidades a enviar (y agregar productos adicionales si aplica).</li>
+            <li>Presionar <strong>🚀 Generar y Despachar Remisión</strong>. El sistema confirmará <code>(Sincronizada con servidor)</code> y <strong>volverá a bloquear la pantalla automáticamente</strong>.</li>
+          </ol>
+        </div>
+        <div class="box">
+          <h4>B. Desde Punto de Venta (Recepción POS)</h4>
+          <ol>
+            <li>Entrar a <strong>3. Remisiones / Despachos → Punto de Venta (Recepción POS)</strong>.</li>
+            <li>Seleccionar tu sede en <strong>Sede Actual</strong> y presionar <strong>🔄 Refrescar</strong>.</li>
+            <li>Abrir la remisión en estado <code>PENDIENTE</code>.</li>
+            <li>Marcar producto por producto si llegó completo o si faltó/tuvo novedad.</li>
+            <li>Escribir el nombre de quien recibe, agregar observaciones si hay novedades y confirmar recepción.</li>
+          </ol>
+        </div>
+      </div>
+
+      <h3>Puntos de Venta Oficiales</h3>
+      <div class="grid-2">
+        <div class="box">
+          <strong>ZONA SUR</strong>
+          <ul>
+            <li>DRIVER PLAZA</li>
+            <li>BAZAAR</li>
+            <li>COLSEGUROS</li>
+            <li>PLAZA 1</li>
+            <li>PLAZA 2</li>
+          </ul>
+        </div>
+        <div class="box">
+          <strong>ZONA NORTE</strong>
+          <ul>
+            <li>BULEVAR</li>
+            <li>PORTAL 80</li>
+            <li>COUNTRY</li>
+            <li>CAFAM FLORESTA</li>
+            <li>MAZUREN</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Módulo 4: Turnos y Asistencias</h3>
+      <ol>
+        <li>Ingresar a <strong>4. Turnos y Asistencias</strong> y autenticar con la clave de Administrador.</li>
+        <li>Consultar o programar la malla semanal por empleado y área (<code>PLANTA</code> / <code>VENTAS</code>), incluyendo novedades precargadas (descansos, incapacidades, etc.).</li>
+        <li>Usar el botón <strong>Descargar Excel Nómina</strong> (arriba a la derecha) o la exportación de malla para generar el reporte consolidado.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>4. Solución Rápida de Problemas</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Síntoma</th>
+            <th>Causa probable</th>
+            <th>Qué hacer</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>La cámara no abre o sale error de permisos</td>
+            <td>Permiso bloqueado en Chrome o la cámara está en uso por otra app.</td>
+            <td>Clic en el ícono de candado junto a la URL → Permitir Cámara → recargar la página.</td>
+          </tr>
+          <tr>
+            <td>Error <code>403</code> al marcar asistencia ("IP no autorizada")</td>
+            <td>La IP pública del punto de venta cambió o no está registrada.</td>
+            <td>Actualizar <code>SALGUEROS_SEDES_IPS_AUTORIZADAS</code> (o DuckDNS) en Render.</td>
+          </tr>
+          <tr>
+            <td>Una remisión no aparece en el punto de venta</td>
+            <td>Se seleccionó otra sede en <em>Sede Actual</em> o se despachó sin conexión.</td>
+            <td>Verificar la sede correcta, presionar <strong>🔄 Refrescar</strong> y confirmar que al despachar haya dicho <code>(Sincronizada con servidor)</code>.</td>
+          </tr>
+          <tr>
+            <td>El sistema tarda al primer clic del día</td>
+            <td>El servidor en Render estaba suspendido por inactividad.</td>
+            <td>Esperar ~30–50 segundos a que el indicador pase a <strong>Backend: Conectado</strong>.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</body>
+</html>
