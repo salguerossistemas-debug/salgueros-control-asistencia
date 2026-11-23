@@ -238,4 +238,9 @@ public class RemisionService {
     public Optional<Remision> obtenerPorTipoYNumero(TipoRemision tipo, Integer numero) {
         return remisionRepository.findByTipoAndNumeroRemision(tipo, numero);
     }
+    @Transactional
+    public void limpiarTodas() {
+        remisionRepository.deleteAll();
+        log.warn("Todas las remisiones fueron eliminadas por solicitud administrativa");
+    }
 }

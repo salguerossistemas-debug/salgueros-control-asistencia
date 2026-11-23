@@ -132,4 +132,15 @@ public class RemisionController {
         }
         return ResponseEntity.ok(remisionService.listarTodas());
     }
+
+    @DeleteMapping("/limpiar")
+    public ResponseEntity<?> limpiarTodas(
+            @RequestHeader(value = "X-Admin-PIN", required = false) String pinHeader) {
+        if (esPinInvalido(pinHeader)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Clave de Planta o Administrador inválida o no proporcionada"));
+        }
+        remisionService.limpiarTodas();
+        return ResponseEntity.ok(Map.of("exito", true, "mensaje", "Todas las remisiones han sido eliminadas"));
+    }
 }

@@ -1485,13 +1485,12 @@
               <div>
                 <label class="block text-xs font-bold text-slate-300 mb-1.5">Punto de Venta Destino:</label>
                 <select v-model="sedeDestinoRemision" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 font-medium">
-                  <option value="Plaza 1">Plaza 1</option>
-                  <option value="Plaza 2">Plaza 2</option>
-                  <option value="Sede Principal">Sede Principal</option>
-                  <option value="Salitre">Salitre</option>
-                  <option value="Suba">Suba</option>
-                  <option value="Chico">Chicó</option>
-                  <option value="Planta Central">Planta Central</option>
+                  <optgroup label="ZONA SUR">
+                    <option v-for="pv in PUNTOS_VENTA_ZONA_SUR" :key="'rem-sur-' + pv.nombre" :value="pv.nombre">{{ pv.nombre }}</option>
+                  </optgroup>
+                  <optgroup label="ZONA NORTE">
+                    <option v-for="pv in PUNTOS_VENTA_ZONA_NORTE" :key="'rem-norte-' + pv.nombre" :value="pv.nombre">{{ pv.nombre }}</option>
+                  </optgroup>
                 </select>
               </div>
 
@@ -1717,12 +1716,12 @@
             <div class="flex items-center gap-3">
               <label class="text-xs font-bold text-slate-300">Sede Actual:</label>
               <select v-model="sedePosSeleccionada" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 font-bold focus:border-emerald-500 focus:outline-none">
-                <option value="Plaza 1">Plaza 1</option>
-                <option value="Plaza 2">Plaza 2</option>
-                <option value="Sede Principal">Sede Principal</option>
-                <option value="Salitre">Salitre</option>
-                <option value="Suba">Suba</option>
-                <option value="Chico">Chicó</option>
+                <optgroup label="ZONA SUR">
+                  <option v-for="pv in PUNTOS_VENTA_ZONA_SUR" :key="'pos-sur-' + pv.nombre" :value="pv.nombre">{{ pv.nombre }}</option>
+                </optgroup>
+                <optgroup label="ZONA NORTE">
+                  <option v-for="pv in PUNTOS_VENTA_ZONA_NORTE" :key="'pos-norte-' + pv.nombre" :value="pv.nombre">{{ pv.nombre }}</option>
+                </optgroup>
               </select>
               <button type="button" @click="cargarPendientesPos" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded-xl text-xs font-bold transition">
                 🔄 Refrescar
@@ -5857,7 +5856,7 @@
         ];
 
         const siguienteConsecutivo = ref('0001');
-        const sedeDestinoRemision = ref('Plaza 1');
+        const sedeDestinoRemision = ref('DRIVER PLAZA');
         const fechaDespachoRemision = ref(hoyStr);
         const despachadoPorRemision = ref('DANIEL');
         const itemsRemisionPlanta = ref([]);
@@ -5867,7 +5866,7 @@
         const historialRemisiones = ref([]);
 
         // POS
-        const sedePosSeleccionada = ref('Plaza 1');
+        const sedePosSeleccionada = ref('DRIVER PLAZA');
         const remisionesPendientesPos = ref([]);
         const remisionSeleccionadaPos = ref(null);
         const recibidoPorPos = ref('');
@@ -6080,6 +6079,7 @@
             if (resp.ok) {
               const data = await resp.json();
               if (Array.isArray(data)) {
+                guardarRemisionesLocales(data);
                 historialRemisiones.value = [...data].sort((a,b) => (Number(b.numeroRemision)||0) - (Number(a.numeroRemision)||0));
                 return;
               }
