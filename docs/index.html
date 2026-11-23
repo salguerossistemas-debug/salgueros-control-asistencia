@@ -5928,11 +5928,12 @@
           }));
 
           try {
-            const resp = await fetch(`${apiBaseUrl}/api/remisiones/consecutivo?tipo=${tipoRemisionActivo.value}`);
+            const resp = await fetch(`${apiBaseUrl}/api/remisiones/siguiente-numero?tipo=${tipoRemisionActivo.value}`);
             if (resp.ok) {
               const data = await resp.json();
-              if (data && data.siguienteConsecutivo) {
-                siguienteConsecutivo.value = data.siguienteConsecutivo;
+              const num = data && (data.numeroFormateado || data.siguienteConsecutivo);
+              if (num) {
+                siguienteConsecutivo.value = num;
                 return;
               }
             }
@@ -5993,13 +5994,17 @@
             try {
               const resp = await fetch(`${apiBaseUrl}/api/remisiones`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-Admin-PIN': pin
+                },
                 body: JSON.stringify(payload)
               });
               if (resp.ok) {
                 const data = await resp.json();
-                if (data.exito && data.remision) {
-                  remisionGuardada = data.remision;
+                const remObj = (data && data.remision) ? data.remision : data;
+                if (remObj && (remObj.id || remObj.numeroRemision)) {
+                  remisionGuardada = remObj;
                   guardadoEnBackend = true;
                 }
               }
@@ -6159,7 +6164,7 @@
           const payload = {
             recibidoPor: recibidoPorPos.value.trim().toUpperCase(),
             novedades: novedadesPos.value ? novedadesPos.value.trim() : '',
-            itemsVerificados: remisionSeleccionadaPos.value.items.map(it => ({
+            checks: remisionSeleccionadaPos.value.items.map(it => ({
               idItem: it.id,
               recibidoOk: it.recibidoOk !== false
             }))
@@ -6175,8 +6180,9 @@
               });
               if (resp.ok) {
                 const data = await resp.json();
-                if (data.exito && data.remision) {
-                  confirmadaRem = data.remision;
+                const remObj = (data && data.remision) ? data.remision : data;
+                if (remObj && (remObj.id || remObj.numeroRemision)) {
+                  confirmadaRem = remObj;
                 }
               }
             } catch (e) {

@@ -78,6 +78,11 @@ public class RemisionController {
         return ResponseEntity.ok(remisionService.listarPendientes(tipo));
     }
 
+    @GetMapping("/recientes")
+    public ResponseEntity<List<Remision>> listarRecientes() {
+        return ResponseEntity.ok(remisionService.listarTodas());
+    }
+
     @GetMapping("/sede/{puntoVenta}")
     public ResponseEntity<List<Remision>> listarPorSede(@PathVariable String puntoVenta) {
         return ResponseEntity.ok(remisionService.listarPorSede(puntoVenta));
