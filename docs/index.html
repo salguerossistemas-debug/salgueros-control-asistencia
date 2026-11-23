@@ -5897,14 +5897,30 @@
             errorPinPlanta.value = 'Ingresa la clave de Planta.';
             return;
           }
-          const pinHash = await calcularHashSHA256(pin);
-          if (pin.toLowerCase() === 'planta2026' || pin === '1234' || HASH_ADMIN_VALIDOS.includes(pinHash)) {
-            plantaBloqueada.value = false;
-            pinPlantaInput.value = pin;
-            pinDesbloqueoPlanta.value = '';
-          } else {
-            errorPinPlanta.value = 'Clave incorrecta para Planta.';
+          try {
+            const resp = await fetch(`${apiBaseUrl}/api/remisiones?tipo=${tipoRemisionActivo.value}`, {
+              headers: { 'X-Admin-PIN': pin }
+            });
+            if (resp.ok) {
+              plantaBloqueada.value = false;
+              pinPlantaInput.value = pin;
+              pinDesbloqueoPlanta.value = '';
+              return;
+            }
+            if (resp.status === 401 || resp.status === 403) {
+              errorPinPlanta.value = 'Clave incorrecta para Planta.';
+              return;
+            }
+          } catch (e) {
+            // Fallback solo si el servidor no responde (sin conexión)
+            if (pin.toLowerCase() === 'planta2026') {
+              plantaBloqueada.value = false;
+              pinPlantaInput.value = pin;
+              pinDesbloqueoPlanta.value = '';
+              return;
+            }
           }
+          errorPinPlanta.value = 'Clave incorrecta para Planta.';
         };
 
         const cargarDatosPlanta = async () => {
@@ -5954,7 +5970,8 @@
           mensajeRemisionPlanta.value = null;
           const pin = pinPlantaInput.value ? pinPlantaInput.value.trim() : '';
           if (!pin) {
-            mensajeRemisionPlanta.value = { exito: false, texto: '⚠️ Debes ingresar la clave de Planta.' };
+            plantaBloqueada.value = true;
+            errorPinPlanta.value = 'Ingresa la clave de Planta para desbloquear y despachar.';
             return;
           }
           const itemsAEnviar = itemsRemisionPlanta.value.filter(i => i.cantidad && String(i.cantidad).trim() !== '');
@@ -5998,6 +6015,13 @@
                   guardadoEnBackend = true;
                 }
               } else {
+                if (resp.status === 401 || resp.status === 403) {
+                  plantaBloqueada.value = true;
+                  pinPlantaInput.value = '';
+                  pinDesbloqueoPlanta.value = '';
+                  errorPinPlanta.value = 'Clave de Planta inválida. Ingresa la clave para desbloquear.';
+                  return;
+                }
                 let errMsg = `HTTP ${resp.status}`;
                 try {
                   const errData = await resp.json();
