@@ -6007,6 +6007,14 @@
                   remisionGuardada = remObj;
                   guardadoEnBackend = true;
                 }
+              } else {
+                let errMsg = `HTTP ${resp.status}`;
+                try {
+                  const errData = await resp.json();
+                  errMsg = errData.error || errData.mensaje || errMsg;
+                } catch (_) {}
+                mensajeRemisionPlanta.value = { exito: false, texto: `⚠️ El servidor rechazó el despacho: ${errMsg}` };
+                return;
               }
             } catch (netErr) {
               console.warn('Backend no disponible para remisiones, guardando local:', netErr);
@@ -6067,21 +6075,20 @@
         };
 
         const cargarHistorialPlanta = async () => {
-          let rems = [];
           try {
             const resp = await fetch(`${apiBaseUrl}/api/remisiones/recientes`);
             if (resp.ok) {
               const data = await resp.json();
-              if (Array.isArray(data)) rems = data;
+              if (Array.isArray(data)) {
+                historialRemisiones.value = [...data].sort((a,b) => (Number(b.numeroRemision)||0) - (Number(a.numeroRemision)||0));
+                return;
+              }
             }
           } catch (e) {
             console.warn('Fallo cargando historial remoto, usando local:', e);
           }
           const locRems = obtenerRemisionesLocales();
-          const mapa = new Map();
-          locRems.forEach(r => mapa.set(`${r.tipo}-${r.numeroRemision}`, r));
-          rems.forEach(r => mapa.set(`${r.tipo}-${r.numeroRemision}`, r));
-          historialRemisiones.value = Array.from(mapa.values()).sort((a,b) => (Number(b.numeroRemision)||0) - (Number(a.numeroRemision)||0));
+          historialRemisiones.value = [...locRems].sort((a,b) => (Number(b.numeroRemision)||0) - (Number(a.numeroRemision)||0));
         };
 
                   // Controla qué punto de venta está desplegado en el historial
@@ -6119,21 +6126,20 @@
             return Object.values(grupos).sort((a, b) => a.sede.localeCompare(b.sede));
           });
         const cargarPendientesPos = async () => {
-          let rems = [];
           try {
             const resp = await fetch(`${apiBaseUrl}/api/remisiones/sede/${encodeURIComponent(sedePosSeleccionada.value)}`);
             if (resp.ok) {
               const data = await resp.json();
-              if (Array.isArray(data)) rems = data;
+              if (Array.isArray(data)) {
+                remisionesPendientesPos.value = [...data].sort((a,b) => (Number(b.numeroRemision)||0) - (Number(a.numeroRemision)||0));
+                return;
+              }
             }
           } catch (e) {
             console.warn('Fallo cargando remisiones POS de backend, usando local:', e);
           }
           const locRems = obtenerRemisionesLocales().filter(r => r.puntoVenta === sedePosSeleccionada.value);
-          const mapa = new Map();
-          locRems.forEach(r => mapa.set(`${r.tipo}-${r.numeroRemision}`, r));
-          rems.forEach(r => mapa.set(`${r.tipo}-${r.numeroRemision}`, r));
-          remisionesPendientesPos.value = Array.from(mapa.values()).sort((a,b) => (Number(b.numeroRemision)||0) - (Number(a.numeroRemision)||0));
+          remisionesPendientesPos.value = [...locRems].sort((a,b) => (Number(b.numeroRemision)||0) - (Number(a.numeroRemision)||0));
         };
 
         const seleccionarRemisionPos = (rem) => {

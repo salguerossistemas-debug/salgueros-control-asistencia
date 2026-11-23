@@ -22,6 +22,9 @@ public class RemisionController {
     @Value("${salgueros.planta.pin:planta2026}")
     private String plantaPin;
 
+    @Value("${salgueros.admin.pin:salgueros2026}")
+    private String adminPin;
+
     public RemisionController(RemisionService remisionService) {
         this.remisionService = remisionService;
     }
@@ -30,7 +33,10 @@ public class RemisionController {
         if (pinHeader == null || pinHeader.trim().isEmpty()) {
             return true;
         }
-        return !plantaPin.equals(pinHeader.trim());
+        String p = pinHeader.trim();
+        boolean esPlanta = plantaPin != null && !plantaPin.isBlank() && plantaPin.trim().equals(p);
+        boolean esAdmin = adminPin != null && !adminPin.isBlank() && adminPin.trim().equals(p);
+        return !(esPlanta || esAdmin);
     }
 
     @GetMapping("/catalogo")
